@@ -130,14 +130,14 @@
         <!-- Login View -->
         <div id="loginView">
             <i class="fas fa-times secondary-btn" style="position:absolute; top:30px; right:30px" onclick="window.closeLogin()"></i>
-            <h2 style="margin-bottom: 10px;">Admin Access</h2>
+            <h2 style="margin-bottom: 20px;">Admin Access</h2>
             <div class="form-group">
-                <input type="text" id="adminUser" placeholder="Username">
+                <input type="text" id="adminUser" placeholder="Username" autocomplete="username">
             </div>
             <div class="form-group">
-                <input type="password" id="adminPassword" placeholder="Password">
+                <input type="password" id="adminPassword" placeholder="Password" autocomplete="current-password">
             </div>
-            <button class="action-btn admin-btn" onclick="window.attemptLogin()">Login</button>
+            <button class="action-btn admin-btn" id="loginSubmitBtn">Login</button>
         </div>
 
         <!-- Admin Manager -->
@@ -250,7 +250,9 @@
             adminIcon: document.getElementById('adminIcon'),
             body: document.getElementById('body'),
             nextUp: document.getElementById('nextUpDisplay'),
-            listenerCount: document.getElementById('listenerCount')
+            listenerCount: document.getElementById('listenerCount'),
+            loginView: document.getElementById('loginView'),
+            managerView: document.getElementById('managerView')
         };
 
         const ADMIN_USER = "radiozza";
@@ -282,6 +284,9 @@
                 });
 
                 await signInAnonymously(auth);
+
+                // Attach login listener
+                document.getElementById('loginSubmitBtn').addEventListener('click', attemptLogin);
             } catch (e) {
                 console.error("Auth error", e);
                 els.overlay.style.display = 'none';
@@ -290,21 +295,18 @@
 
         // Presence logic for counting users
         function startPresence(uid) {
-            // FIX: Ensure path is even number of segments
-            // Path: artifacts/{appId}/public/data/presence/{uid} -> 6 segments (Even)
             const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', uid);
             const updatePresence = () => {
                 setDoc(presenceRef, { lastSeen: Date.now() }, { merge: true });
             };
             updatePresence();
-            setInterval(updatePresence, 30000); // Pulse every 30s
+            setInterval(updatePresence, 30000);
 
-            // Count others
             const countUsers = () => {
                 const presenceCol = collection(db, 'artifacts', appId, 'public', 'data', 'presence');
                 onSnapshot(presenceCol, (snap) => {
                     const now = Date.now();
-                    const active = snap.docs.filter(d => (now - d.data().lastSeen) < 120000); // Active in last 2 mins
+                    const active = snap.docs.filter(d => (now - d.data().lastSeen) < 120000); 
                     els.listenerCount.innerText = active.length || 1;
                 }, (err) => console.error("Presence snap error", err));
             };
@@ -324,7 +326,7 @@
 
         window.autoFillFromTags = () => {
             const url = document.getElementById('mUrl').value;
-            if (!url) return alert("URL required");
+            if (!url) return;
             const btn = document.getElementById('btnAutoFill');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading...';
             
@@ -336,53 +338,57 @@
                     setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
                 },
                 onError: () => {
-                    alert("CORS Blocked or invalid MP3 metadata.");
                     btn.innerHTML = 'Failed';
+                    setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
                 }
             });
         };
 
         window.handleAdminClick = () => {
             if (!isAdmin) {
-                document.getElementById('loginView').style.display = 'flex';
+                els.loginView.style.display = 'flex';
             } else {
                 window.toggleManager();
             }
         };
 
-        window.attemptLogin = () => {
+        function attemptLogin() {
             const u = document.getElementById('adminUser').value;
             const p = document.getElementById('adminPassword').value;
+            
             if (u === ADMIN_USER && p === ADMIN_PASS) {
                 isAdmin = true;
                 els.body.classList.add('admin-active');
                 els.adminIcon.className = "fas fa-unlock secondary-btn admin-toggle";
-                document.getElementById('loginView').style.display = 'none';
-                window.toggleManager();
-                renderPlaylist(); // Re-render to show delete buttons
+                els.loginView.style.display = 'none';
+                els.managerView.style.display = 'flex';
+                renderPlaylist(); 
+                // Clear fields
+                document.getElementById('adminUser').value = '';
+                document.getElementById('adminPassword').value = '';
             } else { 
                 alert("Login Failed. Check username/password."); 
             }
-        };
+        }
 
         window.logoutAdmin = () => {
             isAdmin = false;
             els.body.classList.remove('admin-active');
             els.adminIcon.className = "fas fa-lock secondary-btn admin-toggle";
-            document.getElementById('managerView').style.display = 'none';
+            els.managerView.style.display = 'none';
             renderPlaylist();
         };
 
-        window.closeLogin = () => { document.getElementById('loginView').style.display = 'none'; };
+        window.closeLogin = () => { els.loginView.style.display = 'none'; };
         window.toggleManager = () => {
-            const v = document.getElementById('managerView');
+            const v = els.managerView;
             v.style.display = (v.style.display === 'flex') ? 'none' : 'flex';
         };
 
         window.addSong = async () => {
             if (!isAdmin) return;
             const url = document.getElementById('mUrl').value;
-            if(!url) return alert("URL is required");
+            if(!url) return;
             const data = {
                 title: document.getElementById('mTitle').value || "Unknown",
                 artist: document.getElementById('mArtist').value || "Unknown",
@@ -437,8 +443,15 @@
         }
 
         window.togglePlay = () => {
-            if (isPlaying) { audio.pause(); els.playIcon.className = 'fas fa-play'; els.art.classList.remove('playing'); }
-            else { audio.play(); els.playIcon.className = 'fas fa-pause'; els.art.classList.add('playing'); }
+            if (isPlaying) { 
+                audio.pause(); 
+                els.playIcon.className = 'fas fa-play'; 
+                els.art.classList.remove('playing'); 
+            } else { 
+                audio.play(); 
+                els.playIcon.className = 'fas fa-pause'; 
+                els.art.classList.add('playing'); 
+            }
             isPlaying = !isPlaying;
         };
 
