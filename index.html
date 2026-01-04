@@ -186,7 +186,6 @@
             await signInAnonymously(auth);
         };
 
-        // Autoplay Fallback: First click starts the audio if blocked by browser
         window.handleInteraction = () => {
             if (!hasInteracted) {
                 hasInteracted = true;
@@ -209,7 +208,7 @@
 
         async function calculateLivePosition() {
             if (trackList.length === 0 || !globalStartTime) return;
-            const totalDuration = trackList.reduce((acc, t) => acc + (parseInt(t.duration) || 180), 0);
+            const totalDuration = trackList.reduce((acc, t) => acc + (parseFloat(t.duration) || 0), 0);
             if (totalDuration === 0) return;
 
             const currentCyclePos = ((Date.now() - globalStartTime) / 1000) % totalDuration;
@@ -218,7 +217,7 @@
             let seekTo = 0;
 
             for (let t of trackList) {
-                const dur = parseInt(t.duration) || 180;
+                const dur = parseFloat(t.duration) || 0;
                 if (currentCyclePos < (cumulative + dur)) {
                     currentTrack = t;
                     seekTo = currentCyclePos - cumulative;
@@ -232,7 +231,6 @@
                 audio.load();
                 audio.currentTime = seekTo;
                 updateUI(currentTrack);
-                // Auto-play attempt on track change
                 tryPlay();
             } else if (Math.abs(audio.currentTime - seekTo) > 2) {
                 audio.currentTime = seekTo;
