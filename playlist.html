@@ -20,7 +20,7 @@
         .status { font-size: 0.75rem; color: #4ade80; margin-bottom: 15px; text-align: right; }
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
         .detecting { font-size: 0.7rem; color: #4facfe; margin-top: -10px; margin-bottom: 10px; }
-        #manualBtn { background: #444; color: #ccc; font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; display: none; cursor: pointer; margin-bottom: 10px; width: fit-content; }
+        #manualBtn { background: #e02020; color: white; font-size: 0.75rem; padding: 8px 12px; border-radius: 6px; display: none; cursor: pointer; margin-bottom: 15px; width: 100%; text-align: center; font-weight: bold; border: none; }
     </style>
 </head>
 <body>
@@ -35,7 +35,7 @@
         <label>Direct Audio URL (MP3/M4A)</label>
         <input type="text" id="mUrl" placeholder="https://example.com/song.mp3">
         <div id="detectingMsg" class="detecting" style="display:none;">Analysing file...</div>
-        <div id="manualBtn" onclick="window.unlockDuration()">Unlock Manual Entry</div>
+        <button id="manualBtn" onclick="window.unlockDuration()">⚠️ Click here to enter duration manually</button>
         
         <label>Track Title</label>
         <input type="text" id="mTitle" placeholder="عنوان آهنگ" class="persian">
@@ -82,7 +82,10 @@
         durInput.readOnly = false;
         durInput.style.background = "#222";
         durInput.style.color = "white";
+        durInput.focus();
         document.getElementById('manualBtn').style.display = 'none';
+        document.getElementById('detectingMsg').innerText = "Manual entry enabled.";
+        document.getElementById('detectingMsg').style.color = "#888";
     };
 
     // Auto-detect duration when URL is pasted
@@ -99,17 +102,25 @@
         msg.style.color = "#4facfe";
         manualBtn.style.display = 'none';
 
+        // Reset duration field to readonly during detection
+        durInput.readOnly = true;
+        durInput.style.background = "#111";
+        durInput.style.color = "#666";
+
         const tempAudio = new Audio();
         tempAudio.src = url;
         tempAudio.addEventListener('loadedmetadata', () => {
             durInput.value = Math.ceil(tempAudio.duration);
             msg.innerText = "✅ Duration detected: " + Math.ceil(tempAudio.duration) + "s";
             msg.style.color = "#4ade80";
+            manualBtn.style.display = 'none';
         });
         tempAudio.addEventListener('error', () => {
-            msg.innerText = "❌ Auto-detect failed. Please type duration manually.";
+            msg.innerText = "❌ Auto-detect failed (CORS or Invalid Link).";
             msg.style.color = "#e02020";
             manualBtn.style.display = 'block';
+            // Automatically unlock for convenience
+            window.unlockDuration();
         });
     });
 
