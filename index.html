@@ -213,7 +213,7 @@
         <div class="main-controls">
             <button class="secondary-btn"><i class="fas fa-random"></i></button>
             <button class="secondary-btn" onclick="window.prevSong()"><i class="fas fa-step-backward"></i></button>
-            <div class="btn-play" onclick="window.togglePlay()"><i class="fas fa-play" id="playIcon"></i></div>
+            <div class="btn-play" id="btnPlayMain" onclick="window.togglePlay()"><i class="fas fa-play" id="playIcon"></i></div>
             <button class="secondary-btn" onclick="window.nextSong()"><i class="fas fa-step-forward"></i></button>
             <button class="secondary-btn"><i class="fas fa-redo"></i></button>
         </div>
@@ -226,7 +226,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD_jObj_5sPLaPS55oUcoYQCYRso18cJqo",
@@ -253,7 +253,6 @@
             managerView: document.getElementById('managerView')
         };
 
-        // Simplified Admin Credential
         const ADMIN_CODE = "admin123";
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-app-v1';
 
@@ -262,7 +261,10 @@
         let isPlaying = false;
         let user = null;
         let isAdmin = false;
+        
+        // Setup Audio with anonymous CORS to allow playing from most cloud storage
         const audio = new Audio();
+        audio.crossOrigin = "anonymous"; 
 
         let app, auth, db;
 
@@ -291,6 +293,7 @@
         function startPresence(uid) {
             const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', uid);
             const updatePresence = () => {
+                if (!user) return;
                 setDoc(presenceRef, { lastSeen: Date.now() }, { merge: true });
             };
             updatePresence();
@@ -305,14 +308,25 @@
         }
 
         function startSync() {
-            if (!db) return;
+            if (!db || !user) return;
+            // Rule 1 Compliance: /artifacts/{appId}/public/data/{collection}
             const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
+            
             onSnapshot(musicCol, (snap) => {
-                trackList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                // Fetch and sort locally (Rule 2 Compliance)
+                const newTracks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                trackList = newTracks.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                
                 renderPlaylist();
                 updateNextUp();
-                if (trackList.length > 0 && !audio.src) loadTrack(0);
-            }, (err) => console.error("Sync error", err));
+                
+                // Only load the first track if nothing is loaded yet
+                if (trackList.length > 0 && !audio.src) {
+                    loadTrack(0);
+                }
+            }, (err) => {
+                console.error("Firestore sync failed:", err);
+            });
         }
 
         window.autoFillFromTags = () => {
@@ -321,32 +335,14 @@
             const btn = document.getElementById('btnAutoFill');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading...';
             
-            // Try reading tags via jsmediatags
-            // Note: This requires CORS to be enabled on the remote server hosting the mp3
             window.jsmediatags.read(url, {
                 onSuccess: (tag) => {
                     if (tag.tags.title) document.getElementById('mTitle').value = tag.tags.title;
                     if (tag.tags.artist) document.getElementById('mArtist').value = tag.tags.artist;
-                    
-                    // Handle embedded album art if available
-                    if (tag.tags.picture) {
-                        const { data, format } = tag.tags.picture;
-                        let base64String = "";
-                        for (let i = 0; i < data.length; i++) {
-                            base64String += String.fromCharCode(data[i]);
-                        }
-                        const base64 = "data:" + format + ";base64," + window.btoa(base64String);
-                        // Optional: we can't easily save base64 to DB efficiently, 
-                        // but we can at least show it in the UI. 
-                        // Best to stick to URL for 'mArt' usually.
-                    }
-
                     btn.innerHTML = '<i class="fas fa-check"></i> Found Tags';
                     setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
                 },
                 onError: (error) => {
-                    console.warn("jsmediatags error:", error);
-                    // If failing due to CORS, we attempt a simple filename guess
                     try {
                         const fileName = url.split('/').pop().split('?')[0].replace(/%20/g, ' ');
                         const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
@@ -354,7 +350,7 @@
                             document.getElementById('mTitle').value = nameWithoutExt;
                             btn.innerHTML = '<i class="fas fa-info-circle"></i> Guessed from URL';
                         } else {
-                            btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed (CORS?)';
+                            btn.innerHTML = 'Failed';
                         }
                     } catch(e) {
                         btn.innerHTML = 'Failed';
@@ -374,8 +370,6 @@
 
         window.attemptLogin = () => {
             const p = document.getElementById('adminPassword').value;
-            
-            // Simplified: Just check the password field for admin123
             if (p === ADMIN_CODE) {
                 isAdmin = true;
                 els.body.classList.add('admin-active');
@@ -385,7 +379,7 @@
                 renderPlaylist(); 
                 document.getElementById('adminPassword').value = '';
             } else { 
-                alert("Incorrect password. Access denied."); 
+                alert("Incorrect password."); 
             }
         };
 
@@ -404,22 +398,27 @@
         };
 
         window.addSong = async () => {
-            if (!isAdmin) return;
+            if (!isAdmin || !user) return;
             const url = document.getElementById('mUrl').value;
             if(!url) return;
             const data = {
-                title: document.getElementById('mTitle').value || "Unknown",
-                artist: document.getElementById('mArtist').value || "Unknown",
+                title: document.getElementById('mTitle').value || "Unknown Title",
+                artist: document.getElementById('mArtist').value || "Unknown Artist",
                 art: document.getElementById('mArt').value || "https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg",
                 url: url,
                 createdAt: Date.now()
             };
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
-            ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(i => document.getElementById(i).value = '');
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
+                ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(i => document.getElementById(i).value = '');
+            } catch (err) {
+                console.error("Add song failed:", err);
+            }
         };
 
         window.deleteSong = async (e, id) => {
             e.stopPropagation();
+            if (!user) return;
             if (confirm("Delete this track?")) {
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
             }
@@ -449,40 +448,75 @@
         }
 
         function loadTrack(i) {
+            if (!trackList[i]) return;
             trackIndex = i;
             const t = trackList[i];
-            if(!t) return;
             els.title.innerText = t.title;
             els.artist.innerText = t.artist;
             els.art.src = t.art;
+            
+            // Set source and load
             audio.src = t.url;
+            audio.load(); 
+            
             updateNextUp();
             renderPlaylist();
         }
 
         window.togglePlay = () => {
+            if (!audio.src && trackList.length > 0) loadTrack(trackIndex);
+            
             if (isPlaying) { 
                 audio.pause(); 
-                els.playIcon.className = 'fas fa-play'; 
-                els.art.classList.remove('playing'); 
             } else { 
-                audio.play(); 
-                els.playIcon.className = 'fas fa-pause'; 
-                els.art.classList.add('playing'); 
+                audio.play().catch(e => {
+                    console.error("Playback failed. Check if the URL is valid and reachable.", e);
+                });
             }
-            isPlaying = !isPlaying;
         };
 
-        window.nextSong = () => { if(trackList.length > 0) { trackIndex = (trackIndex + 1) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); } };
-        window.prevSong = () => { if(trackList.length > 0) { trackIndex = (trackIndex - 1 + trackList.length) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); } };
-        window.jumpTo = (i) => { loadTrack(i); if(!isPlaying) window.togglePlay(); else audio.play(); };
+        // UI Listeners for audio state
+        audio.onplay = () => {
+            isPlaying = true;
+            els.playIcon.className = 'fas fa-pause'; 
+            els.art.classList.add('playing');
+        };
+
+        audio.onpause = () => {
+            isPlaying = false;
+            els.playIcon.className = 'fas fa-play'; 
+            els.art.classList.remove('playing');
+        };
+
+        window.nextSong = () => { 
+            if(trackList.length > 0) { 
+                trackIndex = (trackIndex + 1) % trackList.length; 
+                loadTrack(trackIndex); 
+                if(isPlaying) audio.play(); 
+            } 
+        };
+
+        window.prevSong = () => { 
+            if(trackList.length > 0) { 
+                trackIndex = (trackIndex - 1 + trackList.length) % trackList.length; 
+                loadTrack(trackIndex); 
+                if(isPlaying) audio.play(); 
+            } 
+        };
+
+        window.jumpTo = (i) => { 
+            loadTrack(i); 
+            audio.play(); 
+        };
+
         window.seek = (e) => {
             const bar = document.getElementById('progressContainer');
             const percent = e.offsetX / bar.offsetWidth;
-            audio.currentTime = percent * audio.duration;
+            if (audio.duration) audio.currentTime = percent * audio.duration;
         };
 
         audio.onended = () => window.nextSong();
+        
         audio.ontimeupdate = () => {
             if (audio.duration) {
                 els.fill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
@@ -491,17 +525,17 @@
             }
         };
 
-        function format(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
+        function format(s) { 
+            const m = Math.floor(s/60); 
+            const sec = Math.floor(s%60); 
+            return `${m}:${sec<10?'0':''}${sec}`; 
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const loginBtn = document.getElementById('loginSubmitBtn');
-            if (loginBtn) {
-                loginBtn.onclick = () => window.attemptLogin();
-            }
-            // Add 'Enter' key listener for password field
-            document.getElementById('adminPassword').addEventListener('keypress', (e) => {
+            document.getElementById('loginSubmitBtn').onclick = () => window.attemptLogin();
+            document.getElementById('adminPassword').onkeypress = (e) => {
                 if (e.key === 'Enter') window.attemptLogin();
-            });
+            };
         });
 
         init();
