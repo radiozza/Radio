@@ -95,11 +95,10 @@
             msg.style.color = "#4ade80";
         });
         tempAudio.addEventListener('error', () => {
-            msg.innerText = "❌ Analysis failed. Link might be blocked or invalid.";
-            msg.style.color = "#e02020";
-            // Set a fallback duration if detection fails, 
-            // though for high accuracy, the URL should ideally be detectable.
-            durInput.value = ""; 
+            msg.innerText = "⚠️ Analysis failed. Will use default duration (180s).";
+            msg.style.color = "#e67e22";
+            // Set a fallback duration if detection fails
+            durInput.value = "180"; 
         });
     });
 
@@ -138,15 +137,10 @@
     window.addSong = async () => {
         const url = document.getElementById('mUrl').value;
         const title = document.getElementById('mTitle').value;
-        const durationValue = document.getElementById('mDur').value;
+        const durationValue = document.getElementById('mDur').value || "180"; // Default to 180 if still empty
         
         if (!url || !title) {
             alert("Please enter at least a URL and Title.");
-            return;
-        }
-
-        if (!durationValue) {
-            alert("Could not determine audio duration. Please ensure the link is a direct MP3/M4A file.");
             return;
         }
 
