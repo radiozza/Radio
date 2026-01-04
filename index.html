@@ -228,7 +228,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD_jObj_5sPLaPS55oUcoYQCYRso18cJqo",
@@ -255,8 +255,9 @@
             managerView: document.getElementById('managerView')
         };
 
-        const ADMIN_USER = "radiozza";
-        const ADMIN_PASS = "w&Mfg^EFZ5hbYx>";
+        // REVERTED CREDENTIALS
+        const ADMIN_USER = "admin";
+        const ADMIN_PASS = "123";
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-app-v1';
 
         let trackList = [];
@@ -290,7 +291,6 @@
             }
         };
 
-        // Presence logic for counting users
         function startPresence(uid) {
             const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', uid);
             const updatePresence = () => {
@@ -299,15 +299,12 @@
             updatePresence();
             setInterval(updatePresence, 30000);
 
-            const countUsers = () => {
-                const presenceCol = collection(db, 'artifacts', appId, 'public', 'data', 'presence');
-                onSnapshot(presenceCol, (snap) => {
-                    const now = Date.now();
-                    const active = snap.docs.filter(d => (now - d.data().lastSeen) < 120000); 
-                    els.listenerCount.innerText = active.length || 1;
-                }, (err) => console.error("Presence snap error", err));
-            };
-            countUsers();
+            const presenceCol = collection(db, 'artifacts', appId, 'public', 'data', 'presence');
+            onSnapshot(presenceCol, (snap) => {
+                const now = Date.now();
+                const active = snap.docs.filter(d => (now - d.data().lastSeen) < 120000); 
+                els.listenerCount.innerText = active.length || 1;
+            }, (err) => console.error("Presence error", err));
         }
 
         function startSync() {
@@ -349,11 +346,11 @@
             }
         };
 
-        // EXPLICIT ATTEMPT LOGIN FUNCTION FOR GLOBAL ACCESS
         window.attemptLogin = () => {
             const u = document.getElementById('adminUser').value;
             const p = document.getElementById('adminPassword').value;
             
+            // Reverted login logic
             if (u === ADMIN_USER && p === ADMIN_PASS) {
                 isAdmin = true;
                 els.body.classList.add('admin-active');
@@ -361,11 +358,10 @@
                 els.loginView.style.display = 'none';
                 els.managerView.style.display = 'flex';
                 renderPlaylist(); 
-                // Clear fields
                 document.getElementById('adminUser').value = '';
                 document.getElementById('adminPassword').value = '';
             } else { 
-                alert("Login Failed. Check username/password."); 
+                alert("Login Failed. Use admin / 123"); 
             }
         };
 
@@ -453,8 +449,8 @@
             isPlaying = !isPlaying;
         };
 
-        window.nextSong = () => { trackIndex = (trackIndex + 1) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); };
-        window.prevSong = () => { trackIndex = (trackIndex - 1 + trackList.length) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); };
+        window.nextSong = () => { if(trackList.length > 0) { trackIndex = (trackIndex + 1) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); } };
+        window.prevSong = () => { if(trackList.length > 0) { trackIndex = (trackIndex - 1 + trackList.length) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); } };
         window.jumpTo = (i) => { loadTrack(i); if(!isPlaying) window.togglePlay(); else audio.play(); };
         window.seek = (e) => {
             const bar = document.getElementById('progressContainer');
@@ -473,7 +469,6 @@
 
         function format(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
 
-        // Start initialization and attach events
         document.addEventListener('DOMContentLoaded', () => {
             const loginBtn = document.getElementById('loginSubmitBtn');
             if (loginBtn) {
