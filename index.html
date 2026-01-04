@@ -25,14 +25,25 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        .layout-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
         }
 
         .app-container {
             width: 100%;
             max-width: 380px;
-            height: 90vh;
+            height: 85vh;
             background: var(--bg-color);
             border-radius: 40px;
             overflow: hidden;
@@ -75,12 +86,13 @@
 
         .main-controls { display: flex; justify-content: space-evenly; align-items: center; padding: 0 20px 20px; }
         .btn-play { width: 65px; height: 65px; background: var(--text-main); color: #000; border-radius: 50%; display: grid; place-items: center; font-size: 1.4rem; cursor: pointer; }
-        .secondary-btn { color: var(--text-dim); font-size: 1.2rem; cursor: pointer; background: none; border: none; }
+        .secondary-btn { color: var(--text-dim); font-size: 1.2rem; cursor: pointer; background: none; border: none; transition: color 0.2s; }
+        .secondary-btn:hover { color: var(--text-main); }
 
         .admin-active .secondary-btn.admin-toggle { color: var(--admin-gold); }
 
-        .playlist-drawer { background: var(--card-bg); border-top: 1px solid #2a2a2a; padding: 15px; max-height: 250px; overflow-y: auto; }
-        .list-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; cursor: pointer; margin-bottom: 6px; position: relative; }
+        .playlist-drawer { background: var(--card-bg); border-top: 1px solid #2a2a2a; padding: 15px; max-height: 250px; overflow-y: auto; flex-shrink: 0; }
+        .list-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; cursor: pointer; margin-bottom: 6px; position: relative; transition: background 0.2s; }
         .list-item:hover { background: var(--glass); }
         .list-item.active { background: rgba(224, 32, 32, 0.15); }
         .list-item img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
@@ -89,16 +101,35 @@
         .admin-active .list-item:hover .delete-btn { display: block; }
         .delete-btn:hover { color: var(--accent); }
 
-        #managerView, #loginView { position: absolute; inset: 0; background: #111; z-index: 200; display: none; padding: 30px; flex-direction: column; justify-content: center; }
-        #managerView { justify-content: flex-start; overflow-y: auto; }
+        /* CMS SIDE PANEL */
+        #managerPanel { 
+            width: 350px; 
+            background: var(--card-bg); 
+            border-radius: 30px; 
+            border: 1px solid #333;
+            padding: 25px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
 
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-size: 0.65rem; color: var(--text-dim); margin-bottom: 4px; }
-        .form-group input { width: 100%; background: #222; border: 1px solid #333; padding: 10px; border-radius: 8px; color: white; outline: none; }
-        .action-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        #loginView { 
+            position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 500; 
+            display: none; flex-direction: column; justify-content: center; align-items: center; padding: 40px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .form-group input { width: 100%; background: #000; border: 1px solid #333; padding: 12px; border-radius: 10px; color: white; outline: none; transition: border-color 0.2s; }
+        .form-group input:focus { border-color: var(--accent); }
+        
+        .action-btn { background: var(--accent); color: white; border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; transition: opacity 0.2s; }
+        .action-btn:hover { opacity: 0.9; }
         .admin-btn { background: var(--admin-gold); color: #000; }
         
-        .tag-loader-btn { background: #333; color: #fff; font-size: 0.7rem; padding: 5px 10px; border-radius: 4px; cursor: pointer; border: none; margin-bottom: 10px; }
+        .tag-loader-btn { background: #333; color: #fff; font-size: 0.7rem; padding: 8px 12px; border-radius: 8px; cursor: pointer; border: none; margin-bottom: 15px; width: 100%; }
 
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
         
@@ -116,109 +147,118 @@
         #auth-overlay { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
         .spinner { width:30px; height:30px; border:3px solid #333; border-top-color:var(--accent); border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 800px) {
+            .layout-wrapper { flex-direction: column; align-items: center; }
+            #managerPanel { width: 100%; max-width: 380px; }
+        }
     </style>
 </head>
 <body id="body">
 
-    <div class="app-container">
-        <!-- Loader Screen -->
-        <div id="auth-overlay">
-            <div class="spinner"></div>
-            <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Initializing...</p>
-        </div>
-
-        <!-- Simplified Login View (Password Only) -->
-        <div id="loginView">
-            <i class="fas fa-times secondary-btn" style="position:absolute; top:30px; right:30px" onclick="window.closeLogin()"></i>
-            <h2 style="margin-bottom: 10px;">Admin Access</h2>
-            <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 20px;">Enter security code to manage library</p>
-            <div class="form-group">
-                <input type="password" id="adminPassword" placeholder="Enter Admin Password" autocomplete="current-password">
+    <div class="layout-wrapper">
+        <div class="app-container">
+            <!-- Loader Screen -->
+            <div id="auth-overlay">
+                <div class="spinner"></div>
+                <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Initializing System...</p>
             </div>
-            <button class="action-btn admin-btn" id="loginSubmitBtn">Unlock Manager</button>
-        </div>
 
-        <!-- Admin Manager -->
-        <div id="managerView">
-            <header style="padding: 0 0 20px 0;">
-                <h2>Manage Library</h2>
-                <div style="display:flex; gap: 15px;">
-                    <i class="fas fa-sign-out-alt secondary-btn" onclick="window.logoutAdmin()"></i>
-                    <i class="fas fa-times secondary-btn" onclick="window.toggleManager()"></i>
+            <!-- Login Modal -->
+            <div id="loginView">
+                <i class="fas fa-times secondary-btn" style="position:absolute; top:30px; right:30px" onclick="window.closeLogin()"></i>
+                <div style="text-align: center; width: 100%;">
+                    <i class="fas fa-shield-alt" style="font-size: 2.5rem; color: var(--admin-gold); margin-bottom: 20px;"></i>
+                    <h2 style="margin-bottom: 10px;">Admin Access</h2>
+                    <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 25px;">Enter master code to unlock CMS</p>
+                    <div class="form-group">
+                        <input type="password" id="adminPassword" placeholder="••••••••" autocomplete="current-password" style="text-align: center; font-size: 1.2rem; letter-spacing: 4px;">
+                    </div>
+                    <button class="action-btn admin-btn" id="loginSubmitBtn">Unlock Manager</button>
+                </div>
+            </div>
+
+            <header>
+                <div class="logo-container">
+                    <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="brand-logo">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.7rem; font-weight: bold;">RADIOZZA</span>
+                        <div class="listeners-badge">
+                            <i class="fas fa-circle" style="font-size: 4px;"></i>
+                            <span id="listenerCount">1</span> Live
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <i id="adminIcon" class="fas fa-lock secondary-btn admin-toggle" onclick="window.handleAdminClick()" style="margin-right: 15px"></i>
+                    <i class="fas fa-cog secondary-btn"></i>
                 </div>
             </header>
-            
-            <div class="form-group">
-                <label>MP3 URL (Required)</label>
-                <input type="text" id="mUrl" placeholder="https://example.com/song.mp3">
-            </div>
-            
-            <button class="tag-loader-btn" id="btnAutoFill" onclick="window.autoFillFromTags()">
-                <i class="fas fa-magic"></i> Auto-fill from tags
-            </button>
 
-            <div class="form-group">
-                <label>Track Name</label>
-                <input type="text" id="mTitle" placeholder="Track name">
-            </div>
-            <div class="form-group">
-                <label>Artist Name</label>
-                <input type="text" id="mArtist" placeholder="Artist name">
-            </div>
-            <div class="form-group">
-                <label>Cover Art URL</label>
-                <input type="text" id="mArt" placeholder="Cover Art URL">
-            </div>
-            
-            <button class="action-btn" onclick="window.addSong()">Add to Library</button>
-        </div>
-
-        <header>
-            <div class="logo-container">
-                <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="brand-logo">
-                <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 0.7rem; font-weight: bold;">RADIOZZA</span>
-                    <div class="listeners-badge">
-                        <i class="fas fa-circle" style="font-size: 4px;"></i>
-                        <span id="listenerCount">1</span> Listeners
+            <div class="player-display">
+                <div class="art-wrapper">
+                    <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="art-work" id="mainArt">
+                </div>
+                <div class="info-stack">
+                    <h1 id="mainTitle" class="persian">RadioZZA</h1>
+                    <p id="mainArtist" class="persian">Connecting...</p>
+                    <div id="nextUpDisplay" class="next-up-chip" style="display: none;">
+                        Next: Loading...
                     </div>
                 </div>
             </div>
-            <div>
-                <i id="adminIcon" class="fas fa-lock secondary-btn admin-toggle" onclick="window.handleAdminClick()" style="margin-right: 15px"></i>
-                <i class="fas fa-cog secondary-btn"></i>
-            </div>
-        </header>
 
-        <div class="player-display">
-            <div class="art-wrapper">
-                <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="art-work" id="mainArt">
-            </div>
-            <div class="info-stack">
-                <h1 id="mainTitle" class="persian">RadioZZA</h1>
-                <p id="mainArtist" class="persian">Connecting...</p>
-                <div id="nextUpDisplay" class="next-up-chip" style="display: none;">
-                    Next: Loading...
+            <div class="scrubber">
+                <div class="progress-bar" id="progressContainer" onclick="window.seek(event)">
+                    <div class="progress-fill" id="progressFill"></div>
                 </div>
+                <div class="time-stamps"><span id="currTime">0:00</span><span id="durTime">0:00</span></div>
             </div>
-        </div>
 
-        <div class="scrubber">
-            <div class="progress-bar" id="progressContainer" onclick="window.seek(event)">
-                <div class="progress-fill" id="progressFill"></div>
+            <div class="main-controls">
+                <button class="secondary-btn"><i class="fas fa-random"></i></button>
+                <button class="secondary-btn" onclick="window.prevSong()"><i class="fas fa-step-backward"></i></button>
+                <div class="btn-play" id="btnPlayMain" onclick="window.togglePlay()"><i class="fas fa-play" id="playIcon"></i></div>
+                <button class="secondary-btn" onclick="window.nextSong()"><i class="fas fa-step-forward"></i></button>
+                <button class="secondary-btn"><i class="fas fa-redo"></i></button>
             </div>
-            <div class="time-stamps"><span id="currTime">0:00</span><span id="durTime">0:00</span></div>
+
+            <div class="playlist-drawer" id="playlistItems"></div>
         </div>
 
-        <div class="main-controls">
-            <button class="secondary-btn"><i class="fas fa-random"></i></button>
-            <button class="secondary-btn" onclick="window.prevSong()"><i class="fas fa-step-backward"></i></button>
-            <div class="btn-play" id="btnPlayMain" onclick="window.togglePlay()"><i class="fas fa-play" id="playIcon"></i></div>
-            <button class="secondary-btn" onclick="window.nextSong()"><i class="fas fa-step-forward"></i></button>
-            <button class="secondary-btn"><i class="fas fa-redo"></i></button>
-        </div>
+        <!-- CMS Panel Integrated alongside -->
+        <div id="managerPanel">
+            <header style="padding: 0 0 20px 0; border-bottom: 1px solid #333; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="color: var(--admin-gold); font-size: 0.9rem;">CMS MANAGER</h3>
+                <i class="fas fa-sign-out-alt secondary-btn" onclick="window.logoutAdmin()" style="font-size: 0.9rem;"></i>
+            </header>
+            
+            <div class="form-group">
+                <label>Audio Stream URL (Direct MP3)</label>
+                <input type="text" id="mUrl" placeholder="https://domain.com/track.mp3">
+            </div>
+            
+            <button class="tag-loader-btn" id="btnAutoFill" onclick="window.autoFillFromTags()">
+                <i class="fas fa-magic"></i> Auto-fetch Metadata
+            </button>
 
-        <div class="playlist-drawer" id="playlistItems"></div>
+            <div class="form-group">
+                <label>Song Title</label>
+                <input type="text" id="mTitle" placeholder="Enter title">
+            </div>
+            <div class="form-group">
+                <label>Artist</label>
+                <input type="text" id="mArtist" placeholder="Enter artist">
+            </div>
+            <div class="form-group">
+                <label>Artwork URL</label>
+                <input type="text" id="mArt" placeholder="Image URL (square preferred)">
+            </div>
+            
+            <button class="action-btn" onclick="window.addSong()" style="margin-top: 10px;">
+                <i class="fas fa-plus"></i> Add to Playlist
+            </button>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
@@ -250,7 +290,7 @@
             nextUp: document.getElementById('nextUpDisplay'),
             listenerCount: document.getElementById('listenerCount'),
             loginView: document.getElementById('loginView'),
-            managerView: document.getElementById('managerView')
+            managerPanel: document.getElementById('managerPanel')
         };
 
         const ADMIN_CODE = "admin123";
@@ -262,9 +302,10 @@
         let user = null;
         let isAdmin = false;
         
-        // Setup Audio with anonymous CORS to allow playing from most cloud storage
+        // Setup Audio with fixes for playback
         const audio = new Audio();
-        audio.crossOrigin = "anonymous"; 
+        audio.crossOrigin = "anonymous";
+        audio.preload = "auto";
 
         let app, auth, db;
 
@@ -286,7 +327,7 @@
                 await signInAnonymously(auth);
             } catch (e) {
                 console.error("Auth error", e);
-                els.overlay.style.display = 'none';
+                els.overlay.innerHTML = `<p style="color:red">Connection Failed. Check Internet.</p>`;
             }
         };
 
@@ -309,18 +350,17 @@
 
         function startSync() {
             if (!db || !user) return;
-            // Rule 1 Compliance: /artifacts/{appId}/public/data/{collection}
             const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
             
             onSnapshot(musicCol, (snap) => {
-                // Fetch and sort locally (Rule 2 Compliance)
                 const newTracks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                // Fix: Sort by createdAt so the order is consistent across refreshes
                 trackList = newTracks.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
                 
                 renderPlaylist();
                 updateNextUp();
                 
-                // Only load the first track if nothing is loaded yet
+                // Load first track if nothing is loaded
                 if (trackList.length > 0 && !audio.src) {
                     loadTrack(0);
                 }
@@ -340,22 +380,13 @@
                     if (tag.tags.title) document.getElementById('mTitle').value = tag.tags.title;
                     if (tag.tags.artist) document.getElementById('mArtist').value = tag.tags.artist;
                     btn.innerHTML = '<i class="fas fa-check"></i> Found Tags';
-                    setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
+                    setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fetch Metadata', 2000);
                 },
                 onError: (error) => {
-                    try {
-                        const fileName = url.split('/').pop().split('?')[0].replace(/%20/g, ' ');
-                        const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
-                        if (nameWithoutExt) {
-                            document.getElementById('mTitle').value = nameWithoutExt;
-                            btn.innerHTML = '<i class="fas fa-info-circle"></i> Guessed from URL';
-                        } else {
-                            btn.innerHTML = 'Failed';
-                        }
-                    } catch(e) {
-                        btn.innerHTML = 'Failed';
-                    }
-                    setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
+                    const fileName = url.split('/').pop().split('?')[0].replace(/%20/g, ' ').replace(/\.[^/.]+$/, "");
+                    if (fileName) document.getElementById('mTitle').value = fileName;
+                    btn.innerHTML = 'Metadata Not Found';
+                    setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fetch Metadata', 2000);
                 }
             });
         };
@@ -375,11 +406,11 @@
                 els.body.classList.add('admin-active');
                 els.adminIcon.className = "fas fa-unlock secondary-btn admin-toggle";
                 els.loginView.style.display = 'none';
-                els.managerView.style.display = 'flex';
+                els.managerPanel.style.display = 'flex';
                 renderPlaylist(); 
                 document.getElementById('adminPassword').value = '';
             } else { 
-                alert("Incorrect password."); 
+                alert("Incorrect Admin Password."); 
             }
         };
 
@@ -387,13 +418,14 @@
             isAdmin = false;
             els.body.classList.remove('admin-active');
             els.adminIcon.className = "fas fa-lock secondary-btn admin-toggle";
-            els.managerView.style.display = 'none';
+            els.managerPanel.style.display = 'none';
             renderPlaylist();
         };
 
         window.closeLogin = () => { els.loginView.style.display = 'none'; };
+        
         window.toggleManager = () => {
-            const v = els.managerView;
+            const v = els.managerPanel;
             v.style.display = (v.style.display === 'flex') ? 'none' : 'flex';
         };
 
@@ -401,6 +433,7 @@
             if (!isAdmin || !user) return;
             const url = document.getElementById('mUrl').value;
             if(!url) return;
+            
             const data = {
                 title: document.getElementById('mTitle').value || "Unknown Title",
                 artist: document.getElementById('mArtist').value || "Unknown Artist",
@@ -408,8 +441,10 @@
                 url: url,
                 createdAt: Date.now()
             };
+
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
+                // Clear fields
                 ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(i => document.getElementById(i).value = '');
             } catch (err) {
                 console.error("Add song failed:", err);
@@ -419,18 +454,19 @@
         window.deleteSong = async (e, id) => {
             e.stopPropagation();
             if (!user) return;
-            if (confirm("Delete this track?")) {
+            if (confirm("Permanently remove this track?")) {
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
             }
         };
 
         function renderPlaylist() {
-            els.list.innerHTML = trackList.map((t, i) => `
+            els.list.innerHTML = trackList.length === 0 ? '<p style="text-align:center; padding:20px; color:#555">Playlist Empty</p>' : 
+            trackList.map((t, i) => `
                 <div class="list-item ${i === trackIndex ? 'active' : ''}" onclick="window.jumpTo(${i})">
                     <img src="${t.art}" onerror="this.src='https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg'">
-                    <div style="flex:1">
-                        <div class="persian" style="font-size:0.85rem">${t.title}</div>
-                        <div class="persian" style="font-size:0.75rem; color:var(--text-dim)">${t.artist}</div>
+                    <div style="flex:1; overflow: hidden;">
+                        <div class="persian" style="font-size:0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</div>
+                        <div class="persian" style="font-size:0.75rem; color:var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.artist}</div>
                     </div>
                     ${isAdmin ? `<i class="fas fa-trash-alt delete-btn" onclick="window.deleteSong(event, '${t.id}')"></i>` : ''}
                 </div>
@@ -455,9 +491,9 @@
             els.artist.innerText = t.artist;
             els.art.src = t.art;
             
-            // Set source and load
+            // Set source
             audio.src = t.url;
-            audio.load(); 
+            audio.load();
             
             updateNextUp();
             renderPlaylist();
@@ -469,13 +505,17 @@
             if (isPlaying) { 
                 audio.pause(); 
             } else { 
-                audio.play().catch(e => {
-                    console.error("Playback failed. Check if the URL is valid and reachable.", e);
-                });
+                // Fix for mobile and browsers that block autoplay: 
+                // We ensure the play call is triggered by this user interaction
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log("Playback blocked or failed:", error);
+                    });
+                }
             }
         };
 
-        // UI Listeners for audio state
         audio.onplay = () => {
             isPlaying = true;
             els.playIcon.className = 'fas fa-pause'; 
@@ -492,7 +532,7 @@
             if(trackList.length > 0) { 
                 trackIndex = (trackIndex + 1) % trackList.length; 
                 loadTrack(trackIndex); 
-                if(isPlaying) audio.play(); 
+                audio.play(); 
             } 
         };
 
@@ -500,7 +540,7 @@
             if(trackList.length > 0) { 
                 trackIndex = (trackIndex - 1 + trackList.length) % trackList.length; 
                 loadTrack(trackIndex); 
-                if(isPlaying) audio.play(); 
+                audio.play(); 
             } 
         };
 
@@ -525,18 +565,22 @@
             }
         };
 
+        // Handling potential error if audio source fails to play
+        audio.onerror = () => {
+            console.error("Audio error: Could not play the selected source.");
+            els.artist.innerText = "Error: Invalid Audio Source";
+        };
+
         function format(s) { 
             const m = Math.floor(s/60); 
             const sec = Math.floor(s%60); 
             return `${m}:${sec<10?'0':''}${sec}`; 
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('loginSubmitBtn').onclick = () => window.attemptLogin();
-            document.getElementById('adminPassword').onkeypress = (e) => {
-                if (e.key === 'Enter') window.attemptLogin();
-            };
-        });
+        document.getElementById('loginSubmitBtn').onclick = () => window.attemptLogin();
+        document.getElementById('adminPassword').onkeypress = (e) => {
+            if (e.key === 'Enter') window.attemptLogin();
+        };
 
         init();
     </script>
