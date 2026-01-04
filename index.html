@@ -49,20 +49,31 @@
         .brand-logo { width: 32px; height: 32px; object-fit: cover; border-radius: 8px; border: 1px solid #333; }
 
         .player-display { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 30px; }
-        .art-wrapper { position: relative; width: 240px; height: 240px; }
+        .art-wrapper { position: relative; width: 220px; height: 220px; }
         .art-work { width: 100%; height: 100%; border-radius: 20px; object-fit: cover; transition: all 0.5s; box-shadow: 0 20px 40px rgba(0,0,0,0.6); background: #222; }
         .art-work.playing { transform: scale(1.05); box-shadow: 0 0 30px var(--accent); }
 
         .info-stack { text-align: center; margin-top: 25px; width: 100%; }
         .info-stack h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
         .info-stack p { color: var(--text-dim); font-size: 0.85rem; }
+        
+        .next-up-chip { 
+            font-size: 0.65rem; 
+            color: var(--accent); 
+            background: rgba(224, 32, 32, 0.1); 
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            margin-top: 10px; 
+            display: inline-block;
+            border: 1px solid rgba(224, 32, 32, 0.2);
+        }
 
         .scrubber { width: 100%; padding: 20px 35px; }
         .progress-bar { height: 5px; background: #333; border-radius: 10px; cursor: pointer; position: relative; }
         .progress-fill { height: 100%; background: var(--accent); width: 0%; border-radius: 10px; }
         .time-stamps { display: flex; justify-content: space-between; font-size: 0.7rem; margin-top: 8px; color: var(--text-dim); }
 
-        .main-controls { display: flex; justify-content: space-evenly; align-items: center; padding: 0 20px 25px; }
+        .main-controls { display: flex; justify-content: space-evenly; align-items: center; padding: 0 20px 20px; }
         .btn-play { width: 65px; height: 65px; background: var(--text-main); color: #000; border-radius: 50%; display: grid; place-items: center; font-size: 1.4rem; cursor: pointer; }
         .secondary-btn { color: var(--text-dim); font-size: 1.2rem; cursor: pointer; background: none; border: none; }
 
@@ -74,8 +85,9 @@
         .list-item.active { background: rgba(224, 32, 32, 0.15); }
         .list-item img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
 
-        .delete-btn { position: absolute; right: 15px; color: #555; font-size: 0.8rem; display: none; }
+        .delete-btn { position: absolute; right: 15px; color: #555; font-size: 0.8rem; display: none; padding: 5px; }
         .admin-active .list-item:hover .delete-btn { display: block; }
+        .delete-btn:hover { color: var(--accent); }
 
         #managerView, #loginView { position: absolute; inset: 0; background: #111; z-index: 200; display: none; padding: 30px; flex-direction: column; justify-content: center; }
         #managerView { justify-content: flex-start; overflow-y: auto; }
@@ -87,10 +99,20 @@
         .admin-btn { background: var(--admin-gold); color: #000; }
         
         .tag-loader-btn { background: #333; color: #fff; font-size: 0.7rem; padding: 5px 10px; border-radius: 4px; cursor: pointer; border: none; margin-bottom: 10px; }
-        .tag-loader-btn:hover { background: #444; }
 
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
         
+        .listeners-badge {
+            font-size: 0.6rem;
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
         #auth-overlay { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
         .spinner { width:30px; height:30px; border:3px solid #333; border-top-color:var(--accent); border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -102,7 +124,7 @@
         <!-- Loader Screen -->
         <div id="auth-overlay">
             <div class="spinner"></div>
-            <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Syncing Library...</p>
+            <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Initializing...</p>
         </div>
 
         <!-- Login View -->
@@ -134,7 +156,7 @@
             </div>
             
             <button class="tag-loader-btn" id="btnAutoFill" onclick="window.autoFillFromTags()">
-                <i class="fas fa-magic"></i> Auto-fill from MP3 tags
+                <i class="fas fa-magic"></i> Auto-fill from tags
             </button>
 
             <div class="form-group">
@@ -156,7 +178,13 @@
         <header>
             <div class="logo-container">
                 <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="brand-logo">
-                <span style="font-size: 0.7rem; font-weight: bold;">RADIOZZA</span>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 0.7rem; font-weight: bold;">RADIOZZA</span>
+                    <div class="listeners-badge">
+                        <i class="fas fa-circle" style="font-size: 4px;"></i>
+                        <span id="listenerCount">1</span> Listeners
+                    </div>
+                </div>
             </div>
             <div>
                 <i id="adminIcon" class="fas fa-lock secondary-btn admin-toggle" onclick="window.handleAdminClick()" style="margin-right: 15px"></i>
@@ -170,12 +198,17 @@
             </div>
             <div class="info-stack">
                 <h1 id="mainTitle" class="persian">RadioZZA</h1>
-                <p id="mainArtist" class="persian">Offline Mode</p>
+                <p id="mainArtist" class="persian">Connecting...</p>
+                <div id="nextUpDisplay" class="next-up-chip" style="display: none;">
+                    Next: Loading...
+                </div>
             </div>
         </div>
 
         <div class="scrubber">
-            <div class="progress-bar" id="progressContainer"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-bar" id="progressContainer" onclick="window.seek(event)">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
             <div class="time-stamps"><span id="currTime">0:00</span><span id="durTime">0:00</span></div>
         </div>
 
@@ -190,13 +223,12 @@
         <div class="playlist-drawer" id="playlistItems"></div>
     </div>
 
-    <!-- External library for reading MP3 tags -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD_jObj_5sPLaPS55oUcoYQCYRso18cJqo",
@@ -217,12 +249,13 @@
             overlay: document.getElementById('auth-overlay'),
             adminIcon: document.getElementById('adminIcon'),
             body: document.getElementById('body'),
-            status: document.getElementById('status-text')
+            nextUp: document.getElementById('nextUpDisplay'),
+            listenerCount: document.getElementById('listenerCount')
         };
 
         const ADMIN_USER = "radiozza";
         const ADMIN_PASS = "w&Mfg^EFZ5hbYx>";
-        const appId = 'radiozza-app-v1';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-app-v1';
 
         let trackList = [];
         let trackIndex = 0;
@@ -242,20 +275,41 @@
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     els.overlay.style.display = 'none';
-                    if (u) startSync();
-                });
-
-                await signInAnonymously(auth).catch(err => {
-                    if (err.code === 'auth/configuration-not-found') {
-                        els.status.innerText = "Guest Mode (Auth Disabled)";
-                        setTimeout(() => els.overlay.style.display = 'none', 1000);
+                    if (u) {
                         startSync();
+                        startPresence(u.uid);
                     }
                 });
+
+                await signInAnonymously(auth);
             } catch (e) {
+                console.error("Auth error", e);
                 els.overlay.style.display = 'none';
             }
         };
+
+        // Presence logic for counting users
+        function startPresence(uid) {
+            // FIX: Ensure path is even number of segments
+            // Path: artifacts/{appId}/public/data/presence/{uid} -> 6 segments (Even)
+            const presenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', uid);
+            const updatePresence = () => {
+                setDoc(presenceRef, { lastSeen: Date.now() }, { merge: true });
+            };
+            updatePresence();
+            setInterval(updatePresence, 30000); // Pulse every 30s
+
+            // Count others
+            const countUsers = () => {
+                const presenceCol = collection(db, 'artifacts', appId, 'public', 'data', 'presence');
+                onSnapshot(presenceCol, (snap) => {
+                    const now = Date.now();
+                    const active = snap.docs.filter(d => (now - d.data().lastSeen) < 120000); // Active in last 2 mins
+                    els.listenerCount.innerText = active.length || 1;
+                }, (err) => console.error("Presence snap error", err));
+            };
+            countUsers();
+        }
 
         function startSync() {
             if (!db) return;
@@ -263,66 +317,36 @@
             onSnapshot(musicCol, (snap) => {
                 trackList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderPlaylist();
+                updateNextUp();
                 if (trackList.length > 0 && !audio.src) loadTrack(0);
-            }, (err) => {
-                if (trackList.length === 0) {
-                    trackList = [{title: "RadioZZA Stream", artist: "Live", art: els.art.src, url: ""}];
-                    renderPlaylist();
-                }
-            });
+            }, (err) => console.error("Sync error", err));
         }
 
         window.autoFillFromTags = () => {
             const url = document.getElementById('mUrl').value;
-            if (!url) {
-                alert("Please enter an MP3 URL first.");
-                return;
-            }
-
+            if (!url) return alert("URL required");
             const btn = document.getElementById('btnAutoFill');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading Tags...';
-            btn.disabled = true;
-
-            // Using jsmediatags to read metadata from a remote URL
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading...';
+            
             window.jsmediatags.read(url, {
-                onSuccess: function(tag) {
-                    const tags = tag.tags;
-                    if (tags.title) document.getElementById('mTitle').value = tags.title;
-                    if (tags.artist) document.getElementById('mArtist').value = tags.artist;
-                    
-                    // Handle image if present
-                    if (tags.picture) {
-                        const { data, format } = tags.picture;
-                        let base64String = "";
-                        for (let i = 0; i < data.length; i++) {
-                            base64String += String.fromCharCode(data[i]);
-                        }
-                        const artBase64 = `data:${format};base64,${window.btoa(base64String)}`;
-                        // Note: Storing large base64 in Firestore isn't recommended, 
-                        // but we'll put it in the URL field for now.
-                        document.getElementById('mArt').value = artBase64;
-                    }
-
-                    btn.innerHTML = '<i class="fas fa-check"></i> Success';
-                    btn.disabled = false;
-                    setTimeout(() => { btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from MP3 tags'; }, 2000);
+                onSuccess: (tag) => {
+                    if (tag.tags.title) document.getElementById('mTitle').value = tag.tags.title;
+                    if (tag.tags.artist) document.getElementById('mArtist').value = tag.tags.artist;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Found Tags';
+                    setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
                 },
-                onError: function(error) {
-                    console.error('Error reading tags:', error.type, error.info);
-                    alert("Could not read tags. This might be due to CORS restrictions on the MP3 host.");
-                    btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from MP3 tags';
-                    btn.disabled = false;
+                onError: () => {
+                    alert("CORS Blocked or invalid MP3 metadata.");
+                    btn.innerHTML = 'Failed';
                 }
             });
         };
 
         window.handleAdminClick = () => {
-            if (!user && !isAdmin) {
+            if (!isAdmin) {
                 document.getElementById('loginView').style.display = 'flex';
-            } else if (isAdmin) {
-                window.toggleManager();
             } else {
-                document.getElementById('loginView').style.display = 'flex';
+                window.toggleManager();
             }
         };
 
@@ -335,14 +359,17 @@
                 els.adminIcon.className = "fas fa-unlock secondary-btn admin-toggle";
                 document.getElementById('loginView').style.display = 'none';
                 window.toggleManager();
-            } else { alert("Invalid Credentials"); }
+                renderPlaylist(); // Re-render to show delete buttons
+            } else { 
+                alert("Login Failed. Check username/password."); 
+            }
         };
 
         window.logoutAdmin = () => {
             isAdmin = false;
             els.body.classList.remove('admin-active');
             els.adminIcon.className = "fas fa-lock secondary-btn admin-toggle";
-            window.toggleManager();
+            document.getElementById('managerView').style.display = 'none';
             renderPlaylist();
         };
 
@@ -353,24 +380,25 @@
         };
 
         window.addSong = async () => {
-            if (!isAdmin || !db) return;
+            if (!isAdmin) return;
+            const url = document.getElementById('mUrl').value;
+            if(!url) return alert("URL is required");
             const data = {
-                title: document.getElementById('mTitle').value || "Unknown Track",
-                artist: document.getElementById('mArtist').value || "Unknown Artist",
-                art: document.getElementById('mArt').value || els.art.src,
-                url: document.getElementById('mUrl').value,
+                title: document.getElementById('mTitle').value || "Unknown",
+                artist: document.getElementById('mArtist').value || "Unknown",
+                art: document.getElementById('mArt').value || "https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg",
+                url: url,
                 createdAt: Date.now()
             };
-            if(!data.url) return alert("URL is required");
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
-                ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(i => document.getElementById(i).value = '');
-            } catch (e) { alert("Error adding song."); }
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
+            ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(i => document.getElementById(i).value = '');
         };
 
         window.deleteSong = async (e, id) => {
             e.stopPropagation();
-            if (confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
+            if (confirm("Delete this track?")) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
+            }
         };
 
         function renderPlaylist() {
@@ -381,18 +409,30 @@
                         <div class="persian" style="font-size:0.85rem">${t.title}</div>
                         <div class="persian" style="font-size:0.75rem; color:var(--text-dim)">${t.artist}</div>
                     </div>
-                    ${isAdmin ? `<i class="fas fa-trash delete-btn" onclick="window.deleteSong(event, '${t.id}')"></i>` : ''}
+                    ${isAdmin ? `<i class="fas fa-trash-alt delete-btn" onclick="window.deleteSong(event, '${t.id}')"></i>` : ''}
                 </div>
             `).join('');
+        }
+
+        function updateNextUp() {
+            if (trackList.length > 1) {
+                const next = trackList[(trackIndex + 1) % trackList.length];
+                els.nextUp.innerText = `Next Up: ${next.title}`;
+                els.nextUp.style.display = 'inline-block';
+            } else {
+                els.nextUp.style.display = 'none';
+            }
         }
 
         function loadTrack(i) {
             trackIndex = i;
             const t = trackList[i];
+            if(!t) return;
             els.title.innerText = t.title;
             els.artist.innerText = t.artist;
             els.art.src = t.art;
             audio.src = t.url;
+            updateNextUp();
             renderPlaylist();
         }
 
@@ -405,7 +445,13 @@
         window.nextSong = () => { trackIndex = (trackIndex + 1) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); };
         window.prevSong = () => { trackIndex = (trackIndex - 1 + trackList.length) % trackList.length; loadTrack(trackIndex); if(isPlaying) audio.play(); };
         window.jumpTo = (i) => { loadTrack(i); if(!isPlaying) window.togglePlay(); else audio.play(); };
+        window.seek = (e) => {
+            const bar = document.getElementById('progressContainer');
+            const percent = e.offsetX / bar.offsetWidth;
+            audio.currentTime = percent * audio.duration;
+        };
 
+        audio.onended = () => window.nextSong();
         audio.ontimeupdate = () => {
             if (audio.duration) {
                 els.fill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
