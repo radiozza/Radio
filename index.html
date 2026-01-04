@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Music Player</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --card-bg: #1a1a1a;
+            --accent: #e02020;
+            --text-main: #ffffff;
+            --text-dim: #b3b3b3;
+            --glass: rgba(255, 255, 255, 0.05);
+            --admin-gold: #fbbf24;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #000;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 380px;
+            height: 90vh;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
+            border: 1px solid #222;
+            position: relative;
+        }
+
+        /* Header */
+        header {
+            padding: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Player Display */
+        .player-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 30px;
+        }
+
+        .art-wrapper {
+            position: relative;
+            width: 240px;
+            height: 240px;
+        }
+
+        .art-work {
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+            object-fit: cover;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            background: #222;
+        }
+
+        .art-work.playing { transform: scale(1.05); box-shadow: 0 0 30px var(--accent); }
+
+        .info-stack { text-align: center; margin-top: 25px; width: 100%; }
+        .info-stack h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+        .info-stack p { color: var(--text-dim); font-size: 0.85rem; }
+
+        /* Scrubber */
+        .scrubber { width: 100%; padding: 20px 35px; }
+        .progress-bar {
+            height: 5px;
+            background: #333;
+            border-radius: 10px;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            border-radius: 10px;
+        }
+
+        .time-stamps {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            margin-top: 8px;
+            color: var(--text-dim);
+        }
+
+        /* Controls */
+        .main-controls {
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            padding: 0 20px 25px;
+        }
+
+        .btn-play {
+            width: 65px;
+            height: 65px;
+            background: var(--text-main);
+            color: #000;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 1.4rem;
+            cursor: pointer;
+        }
+
+        .secondary-btn { 
+            color: var(--text-dim); 
+            font-size: 1.2rem; 
+            cursor: pointer; 
+            background: none; 
+            border: none;
+            transition: color 0.3s;
+        }
+
+        .admin-active .secondary-btn.admin-toggle { color: var(--admin-gold); }
+
+        /* Playlist Drawer */
+        .playlist-drawer {
+            background: var(--card-bg);
+            border-top: 1px solid #2a2a2a;
+            padding: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            position: relative;
+        }
+
+        .list-item:hover { background: var(--glass); }
+        .list-item.active { background: rgba(224, 32, 32, 0.15); }
+        .list-item.active .track-n { color: var(--accent); font-weight: bold; }
+
+        .list-item img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
+        .list-item .track-n { font-size: 0.85rem; }
+        .list-item .art-n { font-size: 0.75rem; color: var(--text-dim); }
+
+        .delete-btn {
+            position: absolute;
+            right: 15px;
+            color: #555;
+            font-size: 0.8rem;
+            display: none; /* Only show in admin mode */
+        }
+        .admin-active .list-item:hover .delete-btn { display: block; }
+        .delete-btn:hover { color: var(--accent); }
+
+        /* Manager View */
+        #managerView, #loginView {
+            position: absolute;
+            inset: 0;
+            background: #111;
+            z-index: 200;
+            display: none;
+            padding: 30px;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        #managerView { justify-content: flex-start; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 0.65rem; color: var(--text-dim); margin-bottom: 4px; }
+        .form-group input { width: 100%; background: #222; border: 1px solid #333; padding: 10px; border-radius: 8px; color: white; outline: none; font-size: 0.9rem; }
+        .action-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        .admin-btn { background: var(--admin-gold); color: #000; }
+
+        .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
+        
+        /* Auth Overlay */
+        #auth-overlay {
+            position: absolute;
+            inset: 0;
+            background: #000;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            width:30px; 
+            height:30px; 
+            border:3px solid #333; 
+            border-top-color:var(--accent); 
+            border-radius:50%; 
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body id="body">
+
+    <div class="app-container">
+        <!-- Auth/Init Screen -->
+        <div id="auth-overlay">
+            <div class="spinner"></div>
+            <p id="status-text" style="margin-top:15px; font-size: 0.7rem; color: var(--text-dim)">Initializing Cloud...</p>
+        </div>
+
+        <!-- Login View -->
+        <div id="loginView">
+            <i class="fas fa-times secondary-btn" style="position:absolute; top:30px; right:30px" onclick="window.closeLogin()"></i>
+            <h2 style="margin-bottom: 10px;">Admin Access</h2>
+            <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 20px;">Enter the password to manage playlist.</p>
+            <div class="form-group">
+                <input type="password" id="adminPassword" placeholder="Password">
+            </div>
+            <button class="action-btn admin-btn" onclick="window.attemptLogin()">Login</button>
+        </div>
+
+        <!-- Add Music View -->
+        <div id="managerView">
+            <header style="padding: 0 0 20px 0;">
+                <h2 style="font-size: 1.2rem;">Manage Library</h2>
+                <div style="display:flex; gap: 15px;">
+                    <i class="fas fa-sign-out-alt secondary-btn" onclick="window.logoutAdmin()" title="Logout"></i>
+                    <i class="fas fa-times secondary-btn" onclick="window.toggleManager()"></i>
+                </div>
+            </header>
+            
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="mTitle" placeholder="Track name">
+            </div>
+            <div class="form-group">
+                <label>Artist</label>
+                <input type="text" id="mArtist" placeholder="Artist name">
+            </div>
+            <div class="form-group">
+                <label>Cover Art URL</label>
+                <input type="text" id="mArt" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label>MP3 URL</label>
+                <input type="text" id="mUrl" placeholder="https://...">
+            </div>
+
+            <button class="action-btn" onclick="window.addSong()">Add to Library</button>
+            <p style="font-size: 0.7rem; color: #555; margin-top: 15px; text-align: center;">You are currently in Admin Mode.</p>
+        </div>
+
+        <header>
+            <i id="adminIcon" class="fas fa-lock secondary-btn admin-toggle" onclick="window.handleAdminClick()"></i>
+            <span style="font-size: 0.65rem; letter-spacing: 2px; font-weight: bold; color: var(--text-dim)">CLOUD PLAYER</span>
+            <i class="fas fa-cog secondary-btn"></i>
+        </header>
+
+        <div class="player-display">
+            <div class="art-wrapper">
+                <img src="" alt="" class="art-work" id="mainArt">
+            </div>
+            <div class="info-stack">
+                <h1 id="mainTitle" class="persian">Welcome</h1>
+                <p id="mainArtist" class="persian">Cloud Sync Active</p>
+            </div>
+        </div>
+
+        <div class="scrubber">
+            <div class="progress-bar" id="progressContainer">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="time-stamps">
+                <span id="currTime">0:00</span>
+                <span id="durTime">0:00</span>
+            </div>
+        </div>
+
+        <div class="main-controls">
+            <button class="secondary-btn"><i class="fas fa-random"></i></button>
+            <button class="secondary-btn" onclick="window.prevSong()"><i class="fas fa-step-backward"></i></button>
+            <div class="btn-play" onclick="window.togglePlay()">
+                <i class="fas fa-play" id="playIcon"></i>
+            </div>
+            <button class="secondary-btn" onclick="window.nextSong()"><i class="fas fa-step-forward"></i></button>
+            <button class="secondary-btn"><i class="fas fa-redo"></i></button>
+        </div>
+
+        <div class="playlist-drawer" id="playlistItems">
+            <!-- Firestore data here -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIG
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'music-player-v1';
+        
+        // SECURITY
+        const ADMIN_PASS_HASH = "admin123"; // Simple check for this demo environment
+
+        // STATE
+        let trackList = [];
+        let trackIndex = 0;
+        let isPlaying = false;
+        let user = null;
+        let isAdmin = false;
+        const audio = new Audio();
+
+        // DOM
+        const els = {
+            art: document.getElementById('mainArt'),
+            title: document.getElementById('mainTitle'),
+            artist: document.getElementById('mainArtist'),
+            playIcon: document.getElementById('playIcon'),
+            fill: document.getElementById('progressFill'),
+            list: document.getElementById('playlistItems'),
+            overlay: document.getElementById('auth-overlay'),
+            adminIcon: document.getElementById('adminIcon'),
+            body: document.getElementById('body')
+        };
+
+        // AUTH & SYNC
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth Error:", err);
+                document.getElementById('status-text').innerText = "Failed to connect.";
+            }
+        };
+
+        initAuth();
+
+        onAuthStateChanged(auth, (u) => {
+            if (u) {
+                user = u;
+                els.overlay.style.display = 'none';
+                startSync();
+            }
+        });
+
+        function startSync() {
+            if (!user) return;
+            const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
+            onSnapshot(musicCol, (snapshot) => {
+                trackList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderPlaylist();
+                if (trackList.length > 0 && !audio.src) loadTrack(0);
+            });
+        }
+
+        // ADMIN LOGIC
+        window.handleAdminClick = () => {
+            if (isAdmin) {
+                window.toggleManager();
+            } else {
+                document.getElementById('loginView').style.display = 'flex';
+            }
+        };
+
+        window.closeLogin = () => {
+            document.getElementById('loginView').style.display = 'none';
+        };
+
+        window.attemptLogin = () => {
+            const pass = document.getElementById('adminPassword').value;
+            if (pass === ADMIN_PASS_HASH) {
+                isAdmin = true;
+                els.body.classList.add('admin-active');
+                els.adminIcon.className = "fas fa-unlock secondary-btn admin-toggle";
+                window.closeLogin();
+                window.toggleManager();
+            } else {
+                alert("Incorrect password.");
+            }
+            document.getElementById('adminPassword').value = '';
+        };
+
+        window.logoutAdmin = () => {
+            isAdmin = false;
+            els.body.classList.remove('admin-active');
+            els.adminIcon.className = "fas fa-lock secondary-btn admin-toggle";
+            window.toggleManager();
+        };
+
+        // PLAYLIST ACTIONS
+        window.addSong = async () => {
+            if (!isAdmin) return;
+            const songData = {
+                title: document.getElementById('mTitle').value,
+                artist: document.getElementById('mArtist').value,
+                art: document.getElementById('mArt').value || 'https://via.placeholder.com/300?text=Music',
+                url: document.getElementById('mUrl').value,
+                createdAt: Date.now()
+            };
+
+            if (!songData.title || !songData.url) return alert("Title and URL required!");
+
+            try {
+                const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
+                await addDoc(musicCol, songData);
+                // Clear inputs
+                ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(id => document.getElementById(id).value = '');
+                alert("Song added successfully!");
+            } catch (e) { console.error(e); }
+        };
+
+        window.deleteSong = async (e, id) => {
+            if (!isAdmin) return;
+            e.stopPropagation();
+            if (!confirm("Remove this song?")) return;
+            try {
+                const songDoc = doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id);
+                await deleteDoc(songDoc);
+            } catch (e) { console.error(e); }
+        };
+
+        // PLAYER UI
+        function renderPlaylist() {
+            els.list.innerHTML = trackList.map((track, index) => `
+                <div class="list-item ${index === trackIndex ? 'active' : ''}" onclick="window.jumpTo(${index})">
+                    <img src="${track.art}">
+                    <div style="flex:1">
+                        <div class="track-n persian">${track.title}</div>
+                        <div class="art-n persian">${track.artist}</div>
+                    </div>
+                    <i class="fas fa-trash delete-btn" onclick="window.deleteSong(event, '${track.id}')"></i>
+                </div>
+            `).join('');
+        }
+
+        function loadTrack(index) {
+            if (!trackList[index]) return;
+            trackIndex = index;
+            const track = trackList[index];
+            els.title.innerText = track.title;
+            els.artist.innerText = track.artist;
+            els.art.src = track.art;
+            audio.src = track.url;
+            renderPlaylist();
+        }
+
+        window.togglePlay = () => {
+            if (!audio.src) return;
+            if (isPlaying) {
+                audio.pause();
+                els.playIcon.className = 'fas fa-play';
+                els.art.classList.remove('playing');
+            } else {
+                audio.play().catch(() => {});
+                els.playIcon.className = 'fas fa-pause';
+                els.art.classList.add('playing');
+            }
+            isPlaying = !isPlaying;
+        };
+
+        window.nextSong = () => {
+            if (trackList.length === 0) return;
+            trackIndex = (trackIndex + 1) % trackList.length;
+            loadTrack(trackIndex);
+            if (isPlaying) audio.play().catch(() => {});
+        };
+
+        window.prevSong = () => {
+            if (trackList.length === 0) return;
+            trackIndex = (trackIndex - 1 + trackList.length) % trackList.length;
+            loadTrack(trackIndex);
+            if (isPlaying) audio.play().catch(() => {});
+        };
+
+        window.jumpTo = (index) => {
+            loadTrack(index);
+            if (!isPlaying) window.togglePlay();
+            else audio.play().catch(() => {});
+        };
+
+        window.toggleManager = () => {
+            const v = document.getElementById('managerView');
+            v.style.display = (v.style.display === 'flex') ? 'none' : 'flex';
+        };
+
+        // AUDIO ENGINE
+        audio.ontimeupdate = () => {
+            if (audio.duration) {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                els.fill.style.width = `${percent}%`;
+                document.getElementById('currTime').innerText = formatTime(audio.currentTime);
+                document.getElementById('durTime').innerText = formatTime(audio.duration);
+            }
+        };
+
+        audio.onended = () => window.nextSong();
+
+        document.getElementById('progressContainer').onclick = (e) => {
+            if (!audio.duration) return;
+            const width = e.currentTarget.clientWidth;
+            audio.currentTime = (e.offsetX / width) * audio.duration;
+        };
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+    </script>
+</body>
+</html>
