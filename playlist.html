@@ -78,7 +78,10 @@
     // Auto-detect duration when URL is pasted
     document.getElementById('mUrl').addEventListener('input', function(e) {
         const url = e.target.value.trim();
-        if (!url) return;
+        if (!url) {
+            document.getElementById('mDur').value = "";
+            return;
+        }
 
         const msg = document.getElementById('detectingMsg');
         const durInput = document.getElementById('mDur');
@@ -97,7 +100,7 @@
         tempAudio.addEventListener('error', () => {
             msg.innerText = "⚠️ Analysis failed. Will use default duration (180s).";
             msg.style.color = "#e67e22";
-            // Set a fallback duration if detection fails
+            // Explicitly set fallback if it fails
             durInput.value = "180"; 
         });
     });
@@ -135,13 +138,18 @@
     }
 
     window.addSong = async () => {
-        const url = document.getElementById('mUrl').value;
-        const title = document.getElementById('mTitle').value;
-        const durationValue = document.getElementById('mDur').value || "180"; // Default to 180 if still empty
+        const url = document.getElementById('mUrl').value.trim();
+        const title = document.getElementById('mTitle').value.trim();
+        let durationValue = document.getElementById('mDur').value;
         
         if (!url || !title) {
             alert("Please enter at least a URL and Title.");
             return;
+        }
+
+        // If the detector failed or is still running, default to 180
+        if (!durationValue || isNaN(parseFloat(durationValue))) {
+            durationValue = "180";
         }
 
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), {
