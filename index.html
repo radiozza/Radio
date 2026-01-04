@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RadioZZA</title>
+    <!-- Favicon -->
+    <link id="favicon" rel="icon" type="image/png" href="https://via.placeholder.com/32?text=R">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -42,15 +44,26 @@
             position: relative;
         }
 
-        /* Header */
         header {
-            padding: 25px;
+            padding: 20px 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        /* Player Display */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            border-radius: 6px;
+        }
+
         .player-display {
             flex: 1;
             display: flex;
@@ -82,7 +95,6 @@
         .info-stack h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
         .info-stack p { color: var(--text-dim); font-size: 0.85rem; }
 
-        /* Scrubber */
         .scrubber { width: 100%; padding: 20px 35px; }
         .progress-bar {
             height: 5px;
@@ -106,7 +118,6 @@
             color: var(--text-dim);
         }
 
-        /* Controls */
         .main-controls {
             display: flex;
             justify-content: space-evenly;
@@ -137,7 +148,6 @@
 
         .admin-active .secondary-btn.admin-toggle { color: var(--admin-gold); }
 
-        /* Playlist Drawer */
         .playlist-drawer {
             background: var(--card-bg);
             border-top: 1px solid #2a2a2a;
@@ -170,12 +180,10 @@
             right: 15px;
             color: #555;
             font-size: 0.8rem;
-            display: none; /* Only show in admin mode */
+            display: none;
         }
         .admin-active .list-item:hover .delete-btn { display: block; }
-        .delete-btn:hover { color: var(--accent); }
 
-        /* Manager View */
         #managerView, #loginView {
             position: absolute;
             inset: 0;
@@ -197,7 +205,6 @@
 
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
         
-        /* Auth Overlay */
         #auth-overlay {
             position: absolute;
             inset: 0;
@@ -207,15 +214,12 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            text-align: center;
+            padding: 20px;
         }
 
         .spinner {
-            width:30px; 
-            height:30px; 
-            border:3px solid #333; 
-            border-top-color:var(--accent); 
-            border-radius:50%; 
-            animation: spin 1s linear infinite;
+            width:30px; height:30px; border:3px solid #333; border-top-color:var(--accent); border-radius:50%; animation: spin 1s linear infinite;
         }
 
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -226,8 +230,11 @@
     <div class="app-container">
         <!-- Auth/Init Screen -->
         <div id="auth-overlay">
-            <div class="spinner"></div>
-            <p id="status-text" style="margin-top:15px; font-size: 0.7rem; color: var(--text-dim)">Initializing Cloud...</p>
+            <div class="spinner" id="loader"></div>
+            <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Connecting to RadioZZA...</p>
+            <div id="config-error" style="display:none; color: var(--accent); margin-top: 10px; font-size: 0.7rem;">
+                No Firebase Config Found.<br>Please update the script with your keys.
+            </div>
         </div>
 
         <!-- Login View -->
@@ -269,22 +276,26 @@
             </div>
 
             <button class="action-btn" onclick="window.addSong()">Add to Library</button>
-            <p style="font-size: 0.7rem; color: #555; margin-top: 15px; text-align: center;">You are currently in Admin Mode.</p>
         </div>
 
         <header>
-            <i id="adminIcon" class="fas fa-lock secondary-btn admin-toggle" onclick="window.handleAdminClick()"></i>
-            <span style="font-size: 0.65rem; letter-spacing: 2px; font-weight: bold; color: var(--text-dim)">CLOUD PLAYER</span>
-            <i class="fas fa-cog secondary-btn"></i>
+            <div class="logo-container">
+                <img src="https://via.placeholder.com/100?text=Logo" alt="RadioZZA Logo" class="brand-logo" id="headerLogo">
+                <span style="font-size: 0.65rem; letter-spacing: 2px; font-weight: bold; color: var(--text-dim)">RADIOZZA</span>
+            </div>
+            <div>
+                <i id="adminIcon" class="fas fa-lock secondary-btn admin-toggle" onclick="window.handleAdminClick()" style="margin-right: 15px"></i>
+                <i class="fas fa-cog secondary-btn"></i>
+            </div>
         </header>
 
         <div class="player-display">
             <div class="art-wrapper">
-                <img src="" alt="" class="art-work" id="mainArt">
+                <img src="https://via.placeholder.com/300?text=Waiting..." alt="" class="art-work" id="mainArt">
             </div>
             <div class="info-stack">
-                <h1 id="mainTitle" class="persian">Welcome</h1>
-                <p id="mainArtist" class="persian">Cloud Sync Active</p>
+                <h1 id="mainTitle" class="persian">Ready</h1>
+                <p id="mainArtist" class="persian">Syncing playlist...</p>
             </div>
         </div>
 
@@ -308,9 +319,7 @@
             <button class="secondary-btn"><i class="fas fa-redo"></i></button>
         </div>
 
-        <div class="playlist-drawer" id="playlistItems">
-            <!-- Firestore data here -->
-        </div>
+        <div class="playlist-drawer" id="playlistItems"></div>
     </div>
 
     <script type="module">
@@ -318,15 +327,34 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIG
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
+        // --- STEP 1: ASSETS CONFIG ---
+        // REPLACE THIS URL with your actual logo image URL
+        const LOGO_URL = "https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg"; 
+        
+        // Update images and favicon on load
+        document.getElementById('headerLogo').src = LOGO_URL;
+        document.getElementById('favicon').href = LOGO_URL;
+
+        // --- STEP 2: FIREBASE CONFIG ---
+        let config = {};
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                config = JSON.parse(__firebase_config);
+            }
+        } catch(e) {}
+
+        if (!config.apiKey) {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('config-error').style.display = 'block';
+            document.getElementById('status-text').innerText = "Configuration Required";
+        }
+
+        const app = initializeApp(config);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'music-player-v1';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-app-v1';
         
-        // SECURITY
-        const ADMIN_PASS_HASH = "admin123"; // Simple check for this demo environment
+        const ADMIN_PASS = "admin123";
 
         // STATE
         let trackList = [];
@@ -336,7 +364,6 @@
         let isAdmin = false;
         const audio = new Audio();
 
-        // DOM
         const els = {
             art: document.getElementById('mainArt'),
             title: document.getElementById('mainTitle'),
@@ -349,7 +376,7 @@
             body: document.getElementById('body')
         };
 
-        // AUTH & SYNC
+        // AUTH
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -359,7 +386,6 @@
                 }
             } catch (err) {
                 console.error("Auth Error:", err);
-                document.getElementById('status-text').innerText = "Failed to connect.";
             }
         };
 
@@ -374,39 +400,34 @@
         });
 
         function startSync() {
-            if (!user) return;
             const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
+            
             onSnapshot(musicCol, (snapshot) => {
                 trackList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderPlaylist();
                 if (trackList.length > 0 && !audio.src) loadTrack(0);
+            }, (error) => {
+                console.error("Sync Error:", error);
             });
         }
 
-        // ADMIN LOGIC
+        // ACTIONS
         window.handleAdminClick = () => {
-            if (isAdmin) {
-                window.toggleManager();
-            } else {
-                document.getElementById('loginView').style.display = 'flex';
-            }
+            if (isAdmin) window.toggleManager();
+            else document.getElementById('loginView').style.display = 'flex';
         };
 
-        window.closeLogin = () => {
-            document.getElementById('loginView').style.display = 'none';
-        };
+        window.closeLogin = () => { document.getElementById('loginView').style.display = 'none'; };
 
         window.attemptLogin = () => {
             const pass = document.getElementById('adminPassword').value;
-            if (pass === ADMIN_PASS_HASH) {
+            if (pass === ADMIN_PASS) {
                 isAdmin = true;
                 els.body.classList.add('admin-active');
                 els.adminIcon.className = "fas fa-unlock secondary-btn admin-toggle";
                 window.closeLogin();
                 window.toggleManager();
-            } else {
-                alert("Incorrect password.");
-            }
+            } else { alert("Wrong password."); }
             document.getElementById('adminPassword').value = '';
         };
 
@@ -417,7 +438,6 @@
             window.toggleManager();
         };
 
-        // PLAYLIST ACTIONS
         window.addSong = async () => {
             if (!isAdmin) return;
             const songData = {
@@ -427,29 +447,25 @@
                 url: document.getElementById('mUrl').value,
                 createdAt: Date.now()
             };
-
-            if (!songData.title || !songData.url) return alert("Title and URL required!");
-
+            if (!songData.title || !songData.url) return alert("Fill required fields.");
             try {
                 const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
                 await addDoc(musicCol, songData);
-                // Clear inputs
                 ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(id => document.getElementById(id).value = '');
-                alert("Song added successfully!");
             } catch (e) { console.error(e); }
         };
 
         window.deleteSong = async (e, id) => {
             if (!isAdmin) return;
             e.stopPropagation();
-            if (!confirm("Remove this song?")) return;
+            if (!confirm("Delete song?")) return;
             try {
                 const songDoc = doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id);
                 await deleteDoc(songDoc);
             } catch (e) { console.error(e); }
         };
 
-        // PLAYER UI
+        // UI
         function renderPlaylist() {
             els.list.innerHTML = trackList.map((track, index) => `
                 <div class="list-item ${index === trackIndex ? 'active' : ''}" onclick="window.jumpTo(${index})">
@@ -481,7 +497,7 @@
                 els.playIcon.className = 'fas fa-play';
                 els.art.classList.remove('playing');
             } else {
-                audio.play().catch(() => {});
+                audio.play().catch(e => console.warn("Playback blocked"));
                 els.playIcon.className = 'fas fa-pause';
                 els.art.classList.add('playing');
             }
