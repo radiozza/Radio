@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RadioZZA - Live Sync</title>
-    <link id="favicon" rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg">
+    <title>RadioZZA - Live Stream</title>
+    <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -13,8 +13,6 @@
             --accent: #e02020;
             --text-main: #ffffff;
             --text-dim: #b3b3b3;
-            --glass: rgba(255, 255, 255, 0.05);
-            --admin-gold: #fbbf24;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,26 +21,12 @@
             font-family: 'Segoe UI', system-ui, sans-serif;
             color: var(--text-main);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            overflow-x: hidden;
             padding: 20px;
         }
-
-        .layout-wrapper {
-            display: flex;
-            gap: 20px;
-            width: 100%;
-            max-width: 1000px;
-            justify-content: center;
-            align-items: flex-start;
-            flex-wrap: wrap;
-        }
-
-        /* Views */
-        .view { display: none; width: 100%; justify-content: center; }
-        .view.active { display: flex; }
 
         .app-container {
             width: 100%;
@@ -59,7 +43,6 @@
         }
 
         header { padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
-
         .logo-container { display: flex; align-items: center; gap: 12px; }
         .brand-logo { width: 32px; height: 32px; object-fit: cover; border-radius: 8px; border: 1px solid #333; }
 
@@ -73,17 +56,9 @@
         .info-stack p { color: var(--text-dim); font-size: 0.85rem; }
         
         .live-indicator { 
-            font-size: 0.65rem; 
-            color: #fff; 
-            background: var(--accent); 
-            padding: 4px 12px; 
-            border-radius: 4px; 
-            margin-top: 10px; 
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-weight: bold;
-            text-transform: uppercase;
+            font-size: 0.65rem; color: #fff; background: var(--accent); 
+            padding: 4px 12px; border-radius: 4px; margin-top: 10px; 
+            display: inline-flex; align-items: center; gap: 5px; font-weight: bold; text-transform: uppercase;
         }
 
         .scrubber { width: 100%; padding: 20px 35px; }
@@ -92,148 +67,79 @@
         .time-stamps { display: flex; justify-content: space-between; font-size: 0.7rem; margin-top: 8px; color: var(--text-dim); }
 
         .main-controls { display: flex; justify-content: center; align-items: center; padding: 0 20px 30px; }
-        .btn-play { width: 70px; height: 70px; background: var(--text-main); color: #000; border-radius: 50%; display: grid; place-items: center; font-size: 1.6rem; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.4); }
-        .secondary-btn { color: var(--text-dim); font-size: 1.2rem; cursor: pointer; background: none; border: none; transition: color 0.2s; }
-        .secondary-btn:hover { color: var(--text-main); }
+        .btn-play { 
+            width: 70px; height: 70px; background: var(--text-main); color: #000; 
+            border-radius: 50%; display: grid; place-items: center; font-size: 1.6rem; 
+            cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.4); 
+        }
 
         .playlist-drawer { background: var(--card-bg); border-top: 1px solid #2a2a2a; padding: 15px; max-height: 250px; overflow-y: auto; flex-shrink: 0; }
-        .list-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; margin-bottom: 6px; position: relative; opacity: 0.6; }
+        .list-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; margin-bottom: 6px; opacity: 0.6; }
         .list-item.active { background: rgba(224, 32, 32, 0.15); opacity: 1; border: 1px solid rgba(224, 32, 32, 0.3); }
         .list-item img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
-
-        /* Admin Page Style */
-        .admin-page {
-            width: 100%;
-            max-width: 600px;
-            background: var(--card-bg);
-            border-radius: 30px;
-            border: 1px solid #333;
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-        }
-
-        #loginView { 
-            position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 500; 
-            display: none; flex-direction: column; justify-content: center; align-items: center; padding: 40px;
-        }
-
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; }
-        .form-group input { width: 100%; background: #000; border: 1px solid #333; padding: 12px; border-radius: 10px; color: white; outline: none; }
-        
-        .action-btn { background: var(--accent); color: white; border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; transition: opacity 0.2s; }
-        .action-btn:hover { opacity: 0.8; }
-        .admin-btn { background: var(--admin-gold); color: #000; }
 
         #auth-overlay { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
         .spinner { width:30px; height:30px; border:3px solid #333; border-top-color:var(--accent); border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
-        
-        .delete-btn { position: absolute; right: 15px; color: #555; cursor: pointer; padding: 5px; }
-        .delete-btn:hover { color: var(--accent); }
 
-        .back-nav { display: flex; align-items: center; gap: 10px; color: var(--text-dim); cursor: pointer; margin-bottom: 20px; font-size: 0.9rem; }
-        .back-nav:hover { color: var(--text-main); }
-
-        @media (max-width: 800px) {
-            .layout-wrapper { padding: 10px; }
-        }
+        footer { margin-top: 20px; font-size: 0.7rem; color: #333; }
+        footer a { color: inherit; text-decoration: none; }
     </style>
 </head>
 <body onclick="window.handleInteraction()">
 
-    <div class="layout-wrapper">
-        
-        <!-- PLAYER VIEW -->
-        <div id="playerView" class="view active">
-            <div class="app-container">
-                <div id="auth-overlay">
-                    <div class="spinner"></div>
-                    <p style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Joining Live Radio...</p>
+    <div class="app-container">
+        <!-- Connecting Screen -->
+        <div id="auth-overlay">
+            <div class="spinner"></div>
+            <p style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Connecting to Live Stream...</p>
+        </div>
+
+        <header>
+            <div class="logo-container">
+                <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="brand-logo">
+                <div>
+                    <span style="font-size: 0.7rem; font-weight: bold;">RADIOZZA</span>
+                    <div style="font-size: 0.6rem; color: #4ade80;"><span id="listenerCount">1</span> Listeners</div>
                 </div>
+            </div>
+        </header>
 
-                <div id="loginView">
-                    <i class="fas fa-times secondary-btn" style="position:absolute; top:30px; right:30px" onclick="window.closeLogin()"></i>
-                    <h2 style="margin-bottom: 20px;">Admin Access</h2>
-                    <input type="password" id="adminPassword" placeholder="Enter Access Code" style="width:100%; background:#222; color:#fff; border:none; padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;">
-                    <button class="action-btn admin-btn" onclick="window.attemptLogin()">Unlock CMS</button>
-                </div>
-
-                <header>
-                    <div class="logo-container">
-                        <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="brand-logo">
-                        <div>
-                            <span style="font-size: 0.7rem; font-weight: bold;">RADIOZZA</span>
-                            <div style="font-size: 0.6rem; color: #4ade80;"><span id="listenerCount">1</span> Listeners</div>
-                        </div>
-                    </div>
-                    <i id="adminIcon" class="fas fa-lock secondary-btn" onclick="window.handleAdminClick()"></i>
-                </header>
-
-                <div class="player-display">
-                    <div class="art-wrapper">
-                        <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="art-work" id="mainArt">
-                    </div>
-                    <div class="info-stack">
-                        <h1 id="mainTitle" class="persian">RadioZZA</h1>
-                        <p id="mainArtist" class="persian">Live Stream</p>
-                        <div class="live-indicator"><i class="fas fa-broadcast-tower"></i> Live</div>
-                    </div>
-                </div>
-
-                <div class="scrubber">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill"></div>
-                    </div>
-                    <div class="time-stamps"><span id="currTime">0:00</span><span id="durTime">0:00</span></div>
-                </div>
-
-                <div class="main-controls">
-                    <div class="btn-play" onclick="window.togglePlay()"><i class="fas fa-play" id="playIcon"></i></div>
-                </div>
-
-                <div class="playlist-drawer" id="playlistItems"></div>
+        <div class="player-display">
+            <div class="art-wrapper">
+                <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" class="art-work" id="mainArt">
+            </div>
+            <div class="info-stack">
+                <h1 id="mainTitle" class="persian">RadioZZA</h1>
+                <p id="mainArtist" class="persian">Live Now</p>
+                <div class="live-indicator"><i class="fas fa-broadcast-tower"></i> Live</div>
             </div>
         </div>
 
-        <!-- CMS / PLAYLIST PAGE VIEW -->
-        <div id="cmsView" class="view">
-            <div class="admin-page">
-                <div class="back-nav" onclick="window.switchView('player')">
-                    <i class="fas fa-arrow-left"></i> Back to Player
-                </div>
-                
-                <h2 style="color: var(--admin-gold); margin-bottom: 5px;">Playlist CMS</h2>
-                <p style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 25px;">Manage global broadcast rotation</p>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group"><label>Direct MP3 URL</label><input type="text" id="mUrl"></div>
-                    <div class="form-group"><label>Duration (Seconds)</label><input type="number" id="mDur" placeholder="180"></div>
-                </div>
-                <div class="form-group"><label>Song Title</label><input type="text" id="mTitle"></div>
-                <div class="form-group"><label>Artist Name</label><input type="text" id="mArtist"></div>
-                <div class="form-group"><label>Album Art URL</label><input type="text" id="mArt"></div>
-                
-                <button class="action-btn" onclick="window.addSong()">Add to Rotation</button>
-                <button class="action-btn admin-btn" style="margin-top:10px;" onclick="window.resetStream()">Reset Global Sync Timer</button>
-
-                <hr style="border: none; border-top: 1px solid #333; margin: 25px 0;">
-                
-                <h3 style="font-size: 0.9rem; margin-bottom: 15px;">Current Rotation Queue</h3>
-                <div id="adminPlaylistItems" style="max-height: 300px; overflow-y: auto;"></div>
+        <div class="scrubber">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
             </div>
+            <div class="time-stamps"><span id="currTime">0:00</span><span id="durTime">0:00</span></div>
         </div>
 
+        <div class="main-controls">
+            <div class="btn-play" onclick="window.togglePlay()"><i class="fas fa-play" id="playIcon"></i></div>
+        </div>
+
+        <div class="playlist-drawer" id="playlistItems"></div>
     </div>
+
+    <footer>
+        <a href="playlist.html">CMS Access</a>
+    </footer>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD_jObj_5sPLaPS55oUcoYQCYRso18cJqo",
@@ -251,27 +157,18 @@
             playIcon: document.getElementById('playIcon'),
             fill: document.getElementById('progressFill'),
             list: document.getElementById('playlistItems'),
-            adminList: document.getElementById('adminPlaylistItems'),
             overlay: document.getElementById('auth-overlay'),
-            login: document.getElementById('loginView'),
-            listeners: document.getElementById('listenerCount'),
-            views: {
-                player: document.getElementById('playerView'),
-                cms: document.getElementById('cmsView')
-            }
+            listeners: document.getElementById('listenerCount')
         };
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-live-v2';
+        const appId = 'radiozza-live-v2';
         const audio = new Audio();
         audio.crossOrigin = "anonymous";
-        audio.preload = "auto";
 
         let app, auth, db;
         let trackList = [];
         let globalStartTime = 0;
         let isPlaying = false;
-        let isAdmin = false;
-        let user = null;
         let hasInteracted = false;
 
         const init = async () => {
@@ -280,7 +177,6 @@
             db = getFirestore(app);
 
             onAuthStateChanged(auth, async (u) => {
-                user = u;
                 if (u) {
                     els.overlay.style.display = 'none';
                     syncStream();
@@ -290,34 +186,21 @@
             await signInAnonymously(auth);
         };
 
-        window.switchView = (viewName) => {
-            Object.values(els.views).forEach(v => v.classList.remove('active'));
-            els.views[viewName].classList.add('active');
-        };
-
+        // Autoplay Fallback: First click starts the audio if blocked by browser
         window.handleInteraction = () => {
             if (!hasInteracted) {
                 hasInteracted = true;
-                if (!isPlaying) {
-                    window.togglePlay();
-                }
+                if (!isPlaying) window.togglePlay();
             }
         };
 
         async function syncStream() {
-            const streamRef = doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current');
-            onSnapshot(streamRef, (snap) => {
-                if (snap.exists()) {
-                    globalStartTime = snap.data().startTime;
-                } else {
-                    globalStartTime = Date.now();
-                    setDoc(streamRef, { startTime: globalStartTime });
-                }
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), (snap) => {
+                if (snap.exists()) globalStartTime = snap.data().startTime;
                 calculateLivePosition();
             });
 
-            const playlistCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
-            onSnapshot(playlistCol, (snap) => {
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), (snap) => {
                 trackList = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.createdAt - b.createdAt);
                 renderPlaylist();
                 calculateLivePosition();
@@ -326,42 +209,33 @@
 
         async function calculateLivePosition() {
             if (trackList.length === 0 || !globalStartTime) return;
-
             const totalDuration = trackList.reduce((acc, t) => acc + (parseInt(t.duration) || 180), 0);
             if (totalDuration === 0) return;
 
-            const elapsedMs = Date.now() - globalStartTime;
-            const elapsedSec = elapsedMs / 1000;
-            const currentCyclePos = elapsedSec % totalDuration;
-
+            const currentCyclePos = ((Date.now() - globalStartTime) / 1000) % totalDuration;
             let cumulative = 0;
-            let currentTrackIndex = 0;
+            let currentTrack = trackList[0];
             let seekTo = 0;
 
-            for (let i = 0; i < trackList.length; i++) {
-                const dur = parseInt(trackList[i].duration) || 180;
+            for (let t of trackList) {
+                const dur = parseInt(t.duration) || 180;
                 if (currentCyclePos < (cumulative + dur)) {
-                    currentTrackIndex = i;
+                    currentTrack = t;
                     seekTo = currentCyclePos - cumulative;
                     break;
                 }
                 cumulative += dur;
             }
 
-            const track = trackList[currentTrackIndex];
-            if (!track) return;
-
-            if (audio.src !== track.url) {
-                audio.src = track.url;
+            if (audio.src !== currentTrack.url) {
+                audio.src = currentTrack.url;
                 audio.load();
                 audio.currentTime = seekTo;
-                updateUI(track);
-                
+                updateUI(currentTrack);
+                // Auto-play attempt on track change
                 tryPlay();
-            } else {
-                if (Math.abs(audio.currentTime - seekTo) > 2) {
-                    audio.currentTime = seekTo;
-                }
+            } else if (Math.abs(audio.currentTime - seekTo) > 2) {
+                audio.currentTime = seekTo;
             }
         }
 
@@ -379,27 +253,23 @@
         }
 
         function updateUI(track) {
-            els.title.innerText = track.title || "RadioZZA Live";
+            els.title.innerText = track.title || "RadioZZA";
             els.artist.innerText = track.artist || "Live Stream";
-            els.art.src = track.art || "https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg";
+            els.art.src = track.art;
             document.getElementById('durTime').innerText = format(track.duration || 0);
             renderPlaylist();
         }
 
         function renderPlaylist() {
-            const itemsHtml = trackList.map((t) => `
+            els.list.innerHTML = trackList.map(t => `
                 <div class="list-item ${audio.src === t.url ? 'active' : ''}">
                     <img src="${t.art}">
                     <div style="flex:1">
                         <div class="persian" style="font-size:0.8rem">${t.title}</div>
                         <div style="font-size:0.7rem; color:var(--text-dim)">${t.artist}</div>
                     </div>
-                    ${isAdmin ? `<i class="fas fa-trash delete-btn" onclick="window.removeSong('${t.id}')"></i>` : ''}
                 </div>
             `).join('');
-
-            els.list.innerHTML = itemsHtml;
-            if (isAdmin) els.adminList.innerHTML = itemsHtml;
         }
 
         window.togglePlay = async () => {
@@ -414,66 +284,26 @@
             }
         };
 
-        window.handleAdminClick = () => isAdmin ? window.switchView('cms') : els.login.style.display = 'flex';
-        window.closeLogin = () => els.login.style.display = 'none';
-        window.attemptLogin = () => {
-            if (document.getElementById('adminPassword').value === "admin123") {
-                isAdmin = true;
-                els.login.style.display = 'none';
-                window.switchView('cms');
-                document.getElementById('adminIcon').className = "fas fa-unlock secondary-btn";
-                renderPlaylist();
-            }
-        };
-
-        window.addSong = async () => {
-            const data = {
-                url: document.getElementById('mUrl').value,
-                duration: parseInt(document.getElementById('mDur').value) || 180,
-                title: document.getElementById('mTitle').value,
-                artist: document.getElementById('mArtist').value,
-                art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
-                createdAt: Date.now()
-            };
-            if (!data.url) return;
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
-            ['mUrl','mDur','mTitle','mArtist','mArt'].forEach(id => document.getElementById(id).value = '');
-        };
-
-        window.removeSong = async (id) => {
-            if(confirm("Remove from live rotation?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
-        };
-
-        window.resetStream = async () => {
-            if(confirm("Reset global timer? This will restart the playlist from the beginning for everyone.")) {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), { startTime: Date.now() });
-            }
-        };
-
         function trackPresence(uid) {
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'presence', uid);
             const up = () => setDoc(ref, { last: Date.now() });
             up(); setInterval(up, 30000);
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'presence'), (s) => {
-                const active = s.docs.filter(d => (Date.now() - d.data().last) < 60000).length;
-                els.listeners.innerText = active || 1;
+                els.listeners.innerText = s.docs.filter(d => (Date.now() - d.data().last) < 60000).length || 1;
             });
         }
 
         audio.ontimeupdate = () => {
-            if (audio.duration) {
-                els.fill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
-            }
+            if (audio.duration) els.fill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
             document.getElementById('currTime').innerText = format(audio.currentTime);
         };
-
         audio.onended = () => calculateLivePosition();
 
         function format(s) {
             if (isNaN(s)) return "0:00";
             const m = Math.floor(s/60);
             const sec = Math.floor(s%60);
-            return `${m}:${sec<10?'0':''}${sec}`;
+            return `${m}:${sec.toString().padStart(2,'0')}`;
         }
 
         init();
