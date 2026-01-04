@@ -247,7 +247,7 @@
             <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Connecting to RadioZZA...</p>
             <button id="retry-btn" class="retry-btn" onclick="location.reload()">Retry Connection</button>
             <div id="config-error" style="display:none; color: var(--accent); margin-top: 10px; font-size: 0.7rem;">
-                No Firebase Config Found.<br>Please update the script with your keys.
+                Connection issue.<br>Check your internet or Firebase settings.
             </div>
         </div>
 
@@ -342,7 +342,6 @@
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE CONFIG ---
-        // Provided by user
         const firebaseConfig = {
             apiKey: "AIzaSyD_jObj_5sPLaPS55oUcoYQCYRso18cJqo",
             authDomain: "radio-zza.firebaseapp.com",
@@ -382,17 +381,6 @@
 
         // AUTH INITIALIZATION
         const initAuth = async (retries = 0) => {
-            // Updated validation check to match user's provided config keys
-            if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("AIzaSy")) {
-                // If the key exists (which it does now), proceed. 
-                // Previous check likely failed due to placeholder logic.
-            } else {
-                els.loader.style.display = 'none';
-                els.configError.style.display = 'block';
-                els.status.innerText = "Configuration Required";
-                return;
-            }
-
             const delays = [500, 1000, 2000];
             try {
                 if (!app) {
@@ -400,6 +388,15 @@
                     auth = getAuth(app);
                     db = getFirestore(app);
                 }
+
+                // Wait for the auth listener to handle the user state
+                onAuthStateChanged(auth, (u) => {
+                    if (u) {
+                        user = u;
+                        els.overlay.style.display = 'none';
+                        startSync();
+                    }
+                });
 
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
@@ -434,16 +431,6 @@
 
         initAuth();
 
-        if (auth) {
-            onAuthStateChanged(auth, (u) => {
-                if (u) {
-                    user = u;
-                    els.overlay.style.display = 'none';
-                    startSync();
-                }
-            });
-        }
-
         function startSync() {
             if (!auth || !auth.currentUser || !db) return;
             const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
@@ -457,8 +444,12 @@
         }
 
         window.handleAdminClick = () => {
+            // Check if user exists. If initAuth succeeded, this will be true.
             if (!user) {
-                alert("Cloud connection required for admin access.");
+                // Try to sign in again if state was lost
+                signInAnonymously(auth).catch(() => {
+                    alert("Cloud connection required for admin access.");
+                });
                 return;
             }
             if (isAdmin) window.toggleManager();
