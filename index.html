@@ -321,15 +321,44 @@
             const btn = document.getElementById('btnAutoFill');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading...';
             
+            // Try reading tags via jsmediatags
+            // Note: This requires CORS to be enabled on the remote server hosting the mp3
             window.jsmediatags.read(url, {
                 onSuccess: (tag) => {
                     if (tag.tags.title) document.getElementById('mTitle').value = tag.tags.title;
                     if (tag.tags.artist) document.getElementById('mArtist').value = tag.tags.artist;
+                    
+                    // Handle embedded album art if available
+                    if (tag.tags.picture) {
+                        const { data, format } = tag.tags.picture;
+                        let base64String = "";
+                        for (let i = 0; i < data.length; i++) {
+                            base64String += String.fromCharCode(data[i]);
+                        }
+                        const base64 = "data:" + format + ";base64," + window.btoa(base64String);
+                        // Optional: we can't easily save base64 to DB efficiently, 
+                        // but we can at least show it in the UI. 
+                        // Best to stick to URL for 'mArt' usually.
+                    }
+
                     btn.innerHTML = '<i class="fas fa-check"></i> Found Tags';
                     setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
                 },
-                onError: () => {
-                    btn.innerHTML = 'Failed';
+                onError: (error) => {
+                    console.warn("jsmediatags error:", error);
+                    // If failing due to CORS, we attempt a simple filename guess
+                    try {
+                        const fileName = url.split('/').pop().split('?')[0].replace(/%20/g, ' ');
+                        const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+                        if (nameWithoutExt) {
+                            document.getElementById('mTitle').value = nameWithoutExt;
+                            btn.innerHTML = '<i class="fas fa-info-circle"></i> Guessed from URL';
+                        } else {
+                            btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed (CORS?)';
+                        }
+                    } catch(e) {
+                        btn.innerHTML = 'Failed';
+                    }
                     setTimeout(() => btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from tags', 2000);
                 }
             });
