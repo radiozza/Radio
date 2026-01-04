@@ -284,9 +284,6 @@
                 });
 
                 await signInAnonymously(auth);
-
-                // Attach login listener
-                document.getElementById('loginSubmitBtn').addEventListener('click', attemptLogin);
             } catch (e) {
                 console.error("Auth error", e);
                 els.overlay.style.display = 'none';
@@ -352,7 +349,8 @@
             }
         };
 
-        function attemptLogin() {
+        // EXPLICIT ATTEMPT LOGIN FUNCTION FOR GLOBAL ACCESS
+        window.attemptLogin = () => {
             const u = document.getElementById('adminUser').value;
             const p = document.getElementById('adminPassword').value;
             
@@ -369,7 +367,7 @@
             } else { 
                 alert("Login Failed. Check username/password."); 
             }
-        }
+        };
 
         window.logoutAdmin = () => {
             isAdmin = false;
@@ -474,6 +472,14 @@
         };
 
         function format(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
+
+        // Start initialization and attach events
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginBtn = document.getElementById('loginSubmitBtn');
+            if (loginBtn) {
+                loginBtn.onclick = () => window.attemptLogin();
+            }
+        });
 
         init();
     </script>
