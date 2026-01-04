@@ -20,7 +20,6 @@
         .status { font-size: 0.75rem; color: #4ade80; margin-bottom: 15px; text-align: right; }
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
         .detecting { font-size: 0.7rem; color: #4facfe; margin-top: -10px; margin-bottom: 10px; }
-        #manualBtn { background: #e02020; color: white; font-size: 0.75rem; padding: 8px 12px; border-radius: 6px; display: none; cursor: pointer; margin-bottom: 15px; width: 100%; text-align: center; font-weight: bold; border: none; }
     </style>
 </head>
 <body>
@@ -35,7 +34,6 @@
         <label>Direct Audio URL (MP3/M4A)</label>
         <input type="text" id="mUrl" placeholder="https://example.com/song.mp3">
         <div id="detectingMsg" class="detecting" style="display:none;">Analysing file...</div>
-        <button id="manualBtn" onclick="window.unlockDuration()">⚠️ Click here to enter duration manually</button>
         
         <label>Track Title</label>
         <input type="text" id="mTitle" placeholder="عنوان آهنگ" class="persian">
@@ -46,8 +44,8 @@
         <label>Cover Image URL</label>
         <input type="text" id="mArt" placeholder="https://image-link.jpg">
         
-        <label>Duration (Seconds)</label>
-        <input type="number" id="mDur" placeholder="Seconds" readonly style="background: #111; color: #666;">
+        <!-- Hidden internal field to store the detected duration -->
+        <input type="hidden" id="mDur">
         
         <button onclick="addSong()">Add to Playlist</button>
         <button onclick="resetStream()" class="secondary-btn">🔄 Reset Global Start Time (Sync All)</button>
@@ -77,50 +75,31 @@
     const db = getFirestore(app);
     const appId = 'radiozza-live-v2';
 
-    window.unlockDuration = () => {
-        const durInput = document.getElementById('mDur');
-        durInput.readOnly = false;
-        durInput.style.background = "#222";
-        durInput.style.color = "white";
-        durInput.focus();
-        document.getElementById('manualBtn').style.display = 'none';
-        document.getElementById('detectingMsg').innerText = "Manual entry enabled.";
-        document.getElementById('detectingMsg').style.color = "#888";
-    };
-
     // Auto-detect duration when URL is pasted
     document.getElementById('mUrl').addEventListener('input', function(e) {
         const url = e.target.value.trim();
         if (!url) return;
 
         const msg = document.getElementById('detectingMsg');
-        const manualBtn = document.getElementById('manualBtn');
         const durInput = document.getElementById('mDur');
         
         msg.style.display = 'block';
-        msg.innerText = "⏳ Detecting duration...";
+        msg.innerText = "⏳ Analysing audio stream...";
         msg.style.color = "#4facfe";
-        manualBtn.style.display = 'none';
-
-        // Reset duration field to readonly during detection
-        durInput.readOnly = true;
-        durInput.style.background = "#111";
-        durInput.style.color = "#666";
 
         const tempAudio = new Audio();
         tempAudio.src = url;
         tempAudio.addEventListener('loadedmetadata', () => {
             durInput.value = Math.ceil(tempAudio.duration);
-            msg.innerText = "✅ Duration detected: " + Math.ceil(tempAudio.duration) + "s";
+            msg.innerText = "✅ Audio verified: Ready to add.";
             msg.style.color = "#4ade80";
-            manualBtn.style.display = 'none';
         });
         tempAudio.addEventListener('error', () => {
-            msg.innerText = "❌ Auto-detect failed (CORS or Invalid Link).";
+            msg.innerText = "❌ Analysis failed. Link might be blocked or invalid.";
             msg.style.color = "#e02020";
-            manualBtn.style.display = 'block';
-            // Automatically unlock for convenience
-            window.unlockDuration();
+            // Set a fallback duration if detection fails, 
+            // though for high accuracy, the URL should ideally be detectable.
+            durInput.value = ""; 
         });
     });
 
@@ -159,15 +138,21 @@
     window.addSong = async () => {
         const url = document.getElementById('mUrl').value;
         const title = document.getElementById('mTitle').value;
-        const duration = parseFloat(document.getElementById('mDur').value);
+        const durationValue = document.getElementById('mDur').value;
         
-        if (!url || !title || !duration) {
-            alert("Missing required fields (URL, Title, or Duration).");
+        if (!url || !title) {
+            alert("Please enter at least a URL and Title.");
+            return;
+        }
+
+        if (!durationValue) {
+            alert("Could not determine audio duration. Please ensure the link is a direct MP3/M4A file.");
             return;
         }
 
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), {
-            url, title, duration,
+            url, title, 
+            duration: parseFloat(durationValue),
             artist: document.getElementById('mArtist').value || "RadioZZA",
             art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
             createdAt: Date.now()
@@ -176,10 +161,6 @@
         // Clear UI
         ['mUrl','mTitle','mArtist','mArt','mDur'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('detectingMsg').style.display = 'none';
-        document.getElementById('manualBtn').style.display = 'none';
-        document.getElementById('mDur').readOnly = true;
-        document.getElementById('mDur').style.background = "#111";
-        document.getElementById('mDur').style.color = "#666";
     };
 
     window.deleteTrack = async (id) => {
