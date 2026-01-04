@@ -127,17 +127,15 @@
             <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Initializing...</p>
         </div>
 
-        <!-- Login View -->
+        <!-- Simplified Login View (Password Only) -->
         <div id="loginView">
             <i class="fas fa-times secondary-btn" style="position:absolute; top:30px; right:30px" onclick="window.closeLogin()"></i>
-            <h2 style="margin-bottom: 20px;">Admin Access</h2>
+            <h2 style="margin-bottom: 10px;">Admin Access</h2>
+            <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 20px;">Enter security code to manage library</p>
             <div class="form-group">
-                <input type="text" id="adminUser" placeholder="Username" autocomplete="username">
+                <input type="password" id="adminPassword" placeholder="Enter Admin Password" autocomplete="current-password">
             </div>
-            <div class="form-group">
-                <input type="password" id="adminPassword" placeholder="Password" autocomplete="current-password">
-            </div>
-            <button class="action-btn admin-btn" id="loginSubmitBtn">Login</button>
+            <button class="action-btn admin-btn" id="loginSubmitBtn">Unlock Manager</button>
         </div>
 
         <!-- Admin Manager -->
@@ -255,9 +253,8 @@
             managerView: document.getElementById('managerView')
         };
 
-        // REVERTED CREDENTIALS
-        const ADMIN_USER = "admin";
-        const ADMIN_PASS = "123";
+        // Simplified Admin Credential
+        const ADMIN_CODE = "admin123";
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-app-v1';
 
         let trackList = [];
@@ -347,21 +344,19 @@
         };
 
         window.attemptLogin = () => {
-            const u = document.getElementById('adminUser').value;
             const p = document.getElementById('adminPassword').value;
             
-            // Reverted login logic
-            if (u === ADMIN_USER && p === ADMIN_PASS) {
+            // Simplified: Just check the password field for admin123
+            if (p === ADMIN_CODE) {
                 isAdmin = true;
                 els.body.classList.add('admin-active');
                 els.adminIcon.className = "fas fa-unlock secondary-btn admin-toggle";
                 els.loginView.style.display = 'none';
                 els.managerView.style.display = 'flex';
                 renderPlaylist(); 
-                document.getElementById('adminUser').value = '';
                 document.getElementById('adminPassword').value = '';
             } else { 
-                alert("Login Failed. Use admin / 123"); 
+                alert("Incorrect password. Access denied."); 
             }
         };
 
@@ -474,6 +469,10 @@
             if (loginBtn) {
                 loginBtn.onclick = () => window.attemptLogin();
             }
+            // Add 'Enter' key listener for password field
+            document.getElementById('adminPassword').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') window.attemptLogin();
+            });
         });
 
         init();
