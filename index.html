@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RadioZZA</title>
-    <!-- Favicon -->
-    <link id="favicon" rel="icon" type="image/png" href="https://via.placeholder.com/32?text=R">
+    <!-- Favicon using your Logo URL -->
+    <link id="favicon" rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -54,14 +54,15 @@
         .logo-container {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .brand-logo {
-            width: 30px;
-            height: 30px;
-            object-fit: contain;
-            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #333;
         }
 
         .player-display {
@@ -223,6 +224,18 @@
         }
 
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .retry-btn {
+            margin-top: 20px;
+            background: transparent;
+            border: 1px solid var(--text-dim);
+            color: var(--text-dim);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: none;
+        }
     </style>
 </head>
 <body id="body">
@@ -232,6 +245,7 @@
         <div id="auth-overlay">
             <div class="spinner" id="loader"></div>
             <p id="status-text" style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Connecting to RadioZZA...</p>
+            <button id="retry-btn" class="retry-btn" onclick="location.reload()">Retry Connection</button>
             <div id="config-error" style="display:none; color: var(--accent); margin-top: 10px; font-size: 0.7rem;">
                 No Firebase Config Found.<br>Please update the script with your keys.
             </div>
@@ -280,8 +294,8 @@
 
         <header>
             <div class="logo-container">
-                <img src="https://via.placeholder.com/100?text=Logo" alt="RadioZZA Logo" class="brand-logo" id="headerLogo">
-                <span style="font-size: 0.65rem; letter-spacing: 2px; font-weight: bold; color: var(--text-dim)">RADIOZZA</span>
+                <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" alt="RadioZZA Logo" class="brand-logo" id="headerLogo">
+                <span style="font-size: 0.7rem; letter-spacing: 2px; font-weight: bold; color: var(--text-main)">RADIOZZA</span>
             </div>
             <div>
                 <i id="adminIcon" class="fas fa-lock secondary-btn admin-toggle" onclick="window.handleAdminClick()" style="margin-right: 15px"></i>
@@ -291,11 +305,11 @@
 
         <div class="player-display">
             <div class="art-wrapper">
-                <img src="https://via.placeholder.com/300?text=Waiting..." alt="" class="art-work" id="mainArt">
+                <img src="https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg" alt="Default Art" class="art-work" id="mainArt">
             </div>
             <div class="info-stack">
-                <h1 id="mainTitle" class="persian">Ready</h1>
-                <p id="mainArtist" class="persian">Syncing playlist...</p>
+                <h1 id="mainTitle" class="persian">RadioZZA</h1>
+                <p id="mainArtist" class="persian">Loading your music...</p>
             </div>
         </div>
 
@@ -327,42 +341,15 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- STEP 1: ASSETS CONFIG ---
-        // REPLACE THIS URL with your actual logo image URL
-        const LOGO_URL = "https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg"; 
-        
-        // Update images and favicon on load
-        document.getElementById('headerLogo').src = LOGO_URL;
-        document.getElementById('favicon').href = LOGO_URL;
-
-        // --- STEP 2: FIREBASE CONFIG ---
-        let config = {};
+        // --- FIREBASE CONFIG ---
+        let firebaseConfig = {};
         try {
-            if (typeof __firebase_config !== 'undefined') {
-                config = JSON.parse(__firebase_config);
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = JSON.parse(__firebase_config);
             }
-        } catch(e) {}
-
-        if (!config.apiKey) {
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('config-error').style.display = 'block';
-            document.getElementById('status-text').innerText = "Configuration Required";
+        } catch(e) {
+            console.error("Config Parse Error", e);
         }
-
-        const app = initializeApp(config);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-app-v1';
-        
-        const ADMIN_PASS = "admin123";
-
-        // STATE
-        let trackList = [];
-        let trackIndex = 0;
-        let isPlaying = false;
-        let user = null;
-        let isAdmin = false;
-        const audio = new Audio();
 
         const els = {
             art: document.getElementById('mainArt'),
@@ -373,33 +360,96 @@
             list: document.getElementById('playlistItems'),
             overlay: document.getElementById('auth-overlay'),
             adminIcon: document.getElementById('adminIcon'),
-            body: document.getElementById('body')
+            body: document.getElementById('body'),
+            status: document.getElementById('status-text'),
+            retry: document.getElementById('retry-btn'),
+            loader: document.getElementById('loader'),
+            configError: document.getElementById('config-error')
         };
 
-        // AUTH
-        const initAuth = async () => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-app-v1';
+        const ADMIN_PASS = "admin123";
+
+        let trackList = [];
+        let trackIndex = 0;
+        let isPlaying = false;
+        let user = null;
+        let isAdmin = false;
+        const audio = new Audio();
+
+        let app, auth, db;
+
+        // AUTH INITIALIZATION
+        const initAuth = async (retries = 0) => {
+            if (!firebaseConfig.apiKey) {
+                els.loader.style.display = 'none';
+                els.configError.style.display = 'block';
+                els.status.innerText = "Configuration Required";
+                return;
+            }
+
+            const delays = [500, 1000]; // Shorter retries for better UX
             try {
+                if (!app) {
+                    app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                }
+
+                // RULE 3: Auth BEFORE Queries
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
             } catch (err) {
-                console.error("Auth Error:", err);
+                console.error(`Auth Attempt ${retries} failed:`, err.code || err.message);
+                
+                // Handle network failure specifically
+                if ((err.code === 'auth/network-request-failed' || err.message.includes('network')) && retries < delays.length) {
+                    els.status.innerText = `Connecting... (Retry ${retries + 1})`;
+                    setTimeout(() => initAuth(retries + 1), delays[retries]);
+                } else {
+                    // FINAL FALLBACK: If auth fails, we show local state so app isn't stuck
+                    switchToOfflineMode("Network error. Working in guest mode.");
+                }
             }
         };
 
+        function switchToOfflineMode(message) {
+            console.warn("Switching to Offline/Guest Mode");
+            els.status.innerText = message;
+            els.overlay.style.display = 'none';
+            
+            // Provide default "Loading" track
+            trackList = [{
+                title: "RadioZZA Stream",
+                artist: "Live",
+                art: "https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg",
+                url: "" 
+            }];
+            renderPlaylist();
+            loadTrack(0);
+        }
+
+        // Trigger Auth
         initAuth();
 
-        onAuthStateChanged(auth, (u) => {
-            if (u) {
-                user = u;
-                els.overlay.style.display = 'none';
-                startSync();
-            }
-        });
+        // Listener for Auth state
+        if (auth) {
+            onAuthStateChanged(auth, (u) => {
+                if (u) {
+                    user = u;
+                    els.overlay.style.display = 'none';
+                    startSync();
+                }
+            });
+        }
 
         function startSync() {
+            // RULE 3 Check
+            if (!auth || !auth.currentUser || !db) return;
+            
             const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
             
             onSnapshot(musicCol, (snapshot) => {
@@ -407,12 +457,16 @@
                 renderPlaylist();
                 if (trackList.length > 0 && !audio.src) loadTrack(0);
             }, (error) => {
-                console.error("Sync Error:", error);
+                console.error("Firestore Sync Error:", error);
             });
         }
 
         // ACTIONS
         window.handleAdminClick = () => {
+            if (!user) {
+                alert("Cloud connection required for admin access.");
+                return;
+            }
             if (isAdmin) window.toggleManager();
             else document.getElementById('loginView').style.display = 'flex';
         };
@@ -436,14 +490,15 @@
             els.body.classList.remove('admin-active');
             els.adminIcon.className = "fas fa-lock secondary-btn admin-toggle";
             window.toggleManager();
+            renderPlaylist(); // Update view to hide trash icons
         };
 
         window.addSong = async () => {
-            if (!isAdmin) return;
+            if (!isAdmin || !user || !db) return;
             const songData = {
                 title: document.getElementById('mTitle').value,
                 artist: document.getElementById('mArtist').value,
-                art: document.getElementById('mArt').value || 'https://via.placeholder.com/300?text=Music',
+                art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
                 url: document.getElementById('mUrl').value,
                 createdAt: Date.now()
             };
@@ -452,29 +507,29 @@
                 const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
                 await addDoc(musicCol, songData);
                 ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(id => document.getElementById(id).value = '');
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Add Doc Error:", e); }
         };
 
         window.deleteSong = async (e, id) => {
-            if (!isAdmin) return;
+            if (!isAdmin || !user || !db) return;
             e.stopPropagation();
             if (!confirm("Delete song?")) return;
             try {
                 const songDoc = doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id);
                 await deleteDoc(songDoc);
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Delete Doc Error:", e); }
         };
 
         // UI
         function renderPlaylist() {
             els.list.innerHTML = trackList.map((track, index) => `
                 <div class="list-item ${index === trackIndex ? 'active' : ''}" onclick="window.jumpTo(${index})">
-                    <img src="${track.art}">
+                    <img src="${track.art}" onerror="this.src='https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg'">
                     <div style="flex:1">
                         <div class="track-n persian">${track.title}</div>
                         <div class="art-n persian">${track.artist}</div>
                     </div>
-                    <i class="fas fa-trash delete-btn" onclick="window.deleteSong(event, '${track.id}')"></i>
+                    ${isAdmin ? `<i class="fas fa-trash delete-btn" onclick="window.deleteSong(event, '${track.id}')"></i>` : ''}
                 </div>
             `).join('');
         }
@@ -497,7 +552,7 @@
                 els.playIcon.className = 'fas fa-play';
                 els.art.classList.remove('playing');
             } else {
-                audio.play().catch(e => console.warn("Playback blocked"));
+                audio.play().catch(e => console.warn("Playback blocked or failed"));
                 els.playIcon.className = 'fas fa-pause';
                 els.art.classList.add('playing');
             }
