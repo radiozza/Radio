@@ -21,6 +21,8 @@
         .status { font-size: 0.75rem; color: #4ade80; margin-bottom: 15px; text-align: right; }
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
         .detecting { font-size: 0.7rem; color: #4facfe; margin-top: -10px; margin-bottom: 10px; }
+        .manual-dur { display: flex; gap: 10px; align-items: center; background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; margin-bottom: 15px; }
+        .manual-dur input { margin: 0; width: 80px; text-align: center; }
     </style>
 </head>
 <body>
@@ -44,6 +46,12 @@
         <input type="text" id="mUrl" placeholder="https://example.com/song.mp3">
         <div id="detectingMsg" class="detecting" style="display:none;">Analysing file...</div>
         
+        <div id="durationContainer" class="manual-dur" style="display:none;">
+            <span style="font-size: 0.75rem; color: #888;">Duration (sec):</span>
+            <input type="number" id="mDur" placeholder="180">
+            <span style="font-size: 0.7rem; color: #e67e22;">⚠️ Manual entry needed</span>
+        </div>
+
         <label>Track Title</label>
         <input type="text" id="mTitle" placeholder="عنوان آهنگ" class="persian">
         
@@ -52,8 +60,6 @@
         
         <label>Cover Image URL</label>
         <input type="text" id="mArt" placeholder="https://image-link.jpg">
-        
-        <input type="hidden" id="mDur">
         
         <button onclick="addSong()">Add to Playlist</button>
         <button onclick="resetStream()" class="secondary-btn">🔄 Reset Global Start Time (Sync All)</button>
@@ -82,13 +88,11 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
     
-    // IMPORTANT: Ensure this appId matches exactly across both files
     const appId = 'radiozza-live-v2';
 
-    // Simple Gatekeeper
     window.checkAccess = () => {
         const pass = document.getElementById('passCode').value;
-        if (pass === "1234") { // Replace with your desired password
+        if (pass === "1234") {
             document.getElementById('login-gate').style.display = 'none';
             document.getElementById('admin-panel').style.display = 'block';
             startApp();
@@ -107,28 +111,37 @@
     // Auto-detect duration logic
     document.getElementById('mUrl').addEventListener('input', function(e) {
         const url = e.target.value.trim();
-        if (!url) return;
+        if (!url) {
+            document.getElementById('durationContainer').style.display = 'none';
+            return;
+        }
         const msg = document.getElementById('detectingMsg');
         const durInput = document.getElementById('mDur');
+        const durContainer = document.getElementById('durationContainer');
+        
         msg.style.display = 'block';
         msg.innerText = "⏳ Analysing audio stream...";
         msg.style.color = "#4facfe";
+        
         const tempAudio = new Audio();
         tempAudio.src = url;
+        
         tempAudio.addEventListener('loadedmetadata', () => {
             durInput.value = Math.ceil(tempAudio.duration);
             msg.innerText = "✅ Audio verified: Ready to add.";
             msg.style.color = "#4ade80";
+            durContainer.style.display = 'none'; // Hide manual input if successful
         });
+        
         tempAudio.addEventListener('error', () => {
-            msg.innerText = "⚠️ Analysis failed. Will use default duration (180s).";
+            msg.innerText = "⚠️ Analysis failed. Please enter duration manually.";
             msg.style.color = "#e67e22";
             durInput.value = "180"; 
+            durContainer.style.display = 'flex'; // Show manual input on failure
         });
     });
 
     function loadPlaylist() {
-        // Correct path for global public data
         onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), (snap) => {
             const list = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt);
             const container = document.getElementById('playlistList');
@@ -165,7 +178,9 @@
             return;
         }
 
-        if (!durationValue) durationValue = "180";
+        if (!durationValue || isNaN(parseFloat(durationValue))) {
+            durationValue = "180";
+        }
 
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), {
@@ -179,6 +194,7 @@
             // Reset inputs
             ['mUrl','mTitle','mArtist','mArt','mDur'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('detectingMsg').style.display = 'none';
+            document.getElementById('durationContainer').style.display = 'none';
         } catch (e) {
             alert("Error saving to database. Check connection.");
         }
