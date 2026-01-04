@@ -130,13 +130,13 @@
         }
     </style>
 </head>
-<body>
+<body onclick="window.handleInteraction()">
 
     <div class="layout-wrapper">
         <div class="app-container">
             <div id="auth-overlay">
                 <div class="spinner"></div>
-                <p style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Syncing with Global Stream...</p>
+                <p style="margin-top:15px; font-size: 0.75rem; color: var(--text-dim)">Joining Live Radio...</p>
             </div>
 
             <div id="loginView">
@@ -224,6 +224,7 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'radiozza-live-v2';
         const audio = new Audio();
         audio.crossOrigin = "anonymous";
+        audio.preload = "auto";
 
         let app, auth, db;
         let trackList = [];
@@ -231,6 +232,7 @@
         let isPlaying = false;
         let isAdmin = false;
         let user = null;
+        let hasInteracted = false;
 
         const init = async () => {
             app = initializeApp(firebaseConfig);
@@ -248,21 +250,27 @@
             await signInAnonymously(auth);
         };
 
+        window.handleInteraction = () => {
+            if (!hasInteracted) {
+                hasInteracted = true;
+                if (!isPlaying) {
+                    window.togglePlay();
+                }
+            }
+        };
+
         async function syncStream() {
-            // 1. Get Global Stream Metadata (Start Time)
             const streamRef = doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current');
             onSnapshot(streamRef, (snap) => {
                 if (snap.exists()) {
                     globalStartTime = snap.data().startTime;
                 } else {
-                    // Initialize if missing
                     globalStartTime = Date.now();
                     setDoc(streamRef, { startTime: globalStartTime });
                 }
                 calculateLivePosition();
             });
 
-            // 2. Sync Playlist
             const playlistCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
             onSnapshot(playlistCol, (snap) => {
                 trackList = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.createdAt - b.createdAt);
@@ -271,10 +279,12 @@
             });
         }
 
-        function calculateLivePosition() {
+        async function calculateLivePosition() {
             if (trackList.length === 0 || !globalStartTime) return;
 
             const totalDuration = trackList.reduce((acc, t) => acc + (parseInt(t.duration) || 180), 0);
+            if (totalDuration === 0) return;
+
             const elapsedMs = Date.now() - globalStartTime;
             const elapsedSec = elapsedMs / 1000;
             const currentCyclePos = elapsedSec % totalDuration;
@@ -294,24 +304,42 @@
             }
 
             const track = trackList[currentTrackIndex];
+            if (!track) return;
+
             if (audio.src !== track.url) {
                 audio.src = track.url;
+                audio.load();
                 audio.currentTime = seekTo;
                 updateUI(track);
-                if (isPlaying) audio.play();
+                
+                // Automated play attempt
+                tryPlay();
             } else {
-                // If drift is more than 2 seconds, re-sync
                 if (Math.abs(audio.currentTime - seekTo) > 2) {
                     audio.currentTime = seekTo;
                 }
             }
         }
 
+        async function tryPlay() {
+            try {
+                await audio.play();
+                isPlaying = true;
+                els.playIcon.className = "fas fa-pause";
+                els.art.classList.add('playing');
+            } catch (err) {
+                console.log("Autoplay waiting for user interaction...");
+                isPlaying = false;
+                els.playIcon.className = "fas fa-play";
+                els.art.classList.remove('playing');
+            }
+        }
+
         function updateUI(track) {
-            els.title.innerText = track.title;
-            els.artist.innerText = track.artist;
-            els.art.src = track.art;
-            document.getElementById('durTime').innerText = format(track.duration);
+            els.title.innerText = track.title || "RadioZZA Live";
+            els.artist.innerText = track.artist || "Live Stream";
+            els.art.src = track.art || "https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg";
+            document.getElementById('durTime').innerText = format(track.duration || 0);
             renderPlaylist();
         }
 
@@ -328,20 +356,18 @@
             `).join('');
         }
 
-        window.togglePlay = () => {
+        window.togglePlay = async () => {
             if (isPlaying) {
                 audio.pause();
                 isPlaying = false;
                 els.playIcon.className = "fas fa-play";
+                els.art.classList.remove('playing');
             } else {
-                calculateLivePosition(); // Recalculate exactly where we should be
-                audio.play();
-                isPlaying = true;
-                els.playIcon.className = "fas fa-pause";
+                await calculateLivePosition(); 
+                tryPlay();
             }
         };
 
-        // Standard helpers
         window.handleAdminClick = () => isAdmin ? els.manager.style.display = 'flex' : els.login.style.display = 'flex';
         window.closeLogin = () => els.login.style.display = 'none';
         window.attemptLogin = () => {
@@ -363,16 +389,17 @@
                 art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
                 createdAt: Date.now()
             };
+            if (!data.url) return;
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
             ['mUrl','mDur','mTitle','mArtist','mArt'].forEach(id => document.getElementById(id).value = '');
         };
 
         window.removeSong = async (id) => {
-            if(confirm("Remove?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
+            if(confirm("Remove from live rotation?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
         };
 
         window.resetStream = async () => {
-            if(confirm("Reset global timer for all listeners?")) {
+            if(confirm("Reset global timer? This will restart the playlist from the beginning for everyone.")) {
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), { startTime: Date.now() });
             }
         };
@@ -388,13 +415,16 @@
         }
 
         audio.ontimeupdate = () => {
-            els.fill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+            if (audio.duration) {
+                els.fill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+            }
             document.getElementById('currTime').innerText = format(audio.currentTime);
         };
 
-        audio.onended = () => calculateLivePosition(); // Auto-switch to next song in live cycle
+        audio.onended = () => calculateLivePosition();
 
         function format(s) {
+            if (isNaN(s)) return "0:00";
             const m = Math.floor(s/60);
             const sec = Math.floor(s%60);
             return `${m}:${sec<10?'0':''}${sec}`;
