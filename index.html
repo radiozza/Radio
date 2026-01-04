@@ -78,13 +78,16 @@
         .admin-active .list-item:hover .delete-btn { display: block; }
 
         #managerView, #loginView { position: absolute; inset: 0; background: #111; z-index: 200; display: none; padding: 30px; flex-direction: column; justify-content: center; }
-        #managerView { justify-content: flex-start; }
+        #managerView { justify-content: flex-start; overflow-y: auto; }
 
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; font-size: 0.65rem; color: var(--text-dim); margin-bottom: 4px; }
         .form-group input { width: 100%; background: #222; border: 1px solid #333; padding: 10px; border-radius: 8px; color: white; outline: none; }
-        .action-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .action-btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .admin-btn { background: var(--admin-gold); color: #000; }
+        
+        .tag-loader-btn { background: #333; color: #fff; font-size: 0.7rem; padding: 5px 10px; border-radius: 4px; cursor: pointer; border: none; margin-bottom: 10px; }
+        .tag-loader-btn:hover { background: #444; }
 
         .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
         
@@ -124,10 +127,29 @@
                     <i class="fas fa-times secondary-btn" onclick="window.toggleManager()"></i>
                 </div>
             </header>
-            <div class="form-group"><input type="text" id="mTitle" placeholder="Track name"></div>
-            <div class="form-group"><input type="text" id="mArtist" placeholder="Artist name"></div>
-            <div class="form-group"><input type="text" id="mArt" placeholder="Cover Art URL"></div>
-            <div class="form-group"><input type="text" id="mUrl" placeholder="MP3 URL"></div>
+            
+            <div class="form-group">
+                <label>MP3 URL (Required)</label>
+                <input type="text" id="mUrl" placeholder="https://example.com/song.mp3">
+            </div>
+            
+            <button class="tag-loader-btn" id="btnAutoFill" onclick="window.autoFillFromTags()">
+                <i class="fas fa-magic"></i> Auto-fill from MP3 tags
+            </button>
+
+            <div class="form-group">
+                <label>Track Name</label>
+                <input type="text" id="mTitle" placeholder="Track name">
+            </div>
+            <div class="form-group">
+                <label>Artist Name</label>
+                <input type="text" id="mArtist" placeholder="Artist name">
+            </div>
+            <div class="form-group">
+                <label>Cover Art URL</label>
+                <input type="text" id="mArt" placeholder="Cover Art URL">
+            </div>
+            
             <button class="action-btn" onclick="window.addSong()">Add to Library</button>
         </div>
 
@@ -167,6 +189,9 @@
 
         <div class="playlist-drawer" id="playlistItems"></div>
     </div>
+
+    <!-- External library for reading MP3 tags -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -220,13 +245,10 @@
                     if (u) startSync();
                 });
 
-                // Try sign in, but handle "configuration-not-found" specifically
                 await signInAnonymously(auth).catch(err => {
-                    console.warn("Auth Configuration Error:", err.code);
                     if (err.code === 'auth/configuration-not-found') {
                         els.status.innerText = "Guest Mode (Auth Disabled)";
                         setTimeout(() => els.overlay.style.display = 'none', 1000);
-                        // Still try to sync even if auth fails, in case security rules allow it
                         startSync();
                     }
                 });
@@ -243,7 +265,6 @@
                 renderPlaylist();
                 if (trackList.length > 0 && !audio.src) loadTrack(0);
             }, (err) => {
-                console.error("Firestore Error:", err);
                 if (trackList.length === 0) {
                     trackList = [{title: "RadioZZA Stream", artist: "Live", art: els.art.src, url: ""}];
                     renderPlaylist();
@@ -251,10 +272,52 @@
             });
         }
 
+        window.autoFillFromTags = () => {
+            const url = document.getElementById('mUrl').value;
+            if (!url) {
+                alert("Please enter an MP3 URL first.");
+                return;
+            }
+
+            const btn = document.getElementById('btnAutoFill');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading Tags...';
+            btn.disabled = true;
+
+            // Using jsmediatags to read metadata from a remote URL
+            window.jsmediatags.read(url, {
+                onSuccess: function(tag) {
+                    const tags = tag.tags;
+                    if (tags.title) document.getElementById('mTitle').value = tags.title;
+                    if (tags.artist) document.getElementById('mArtist').value = tags.artist;
+                    
+                    // Handle image if present
+                    if (tags.picture) {
+                        const { data, format } = tags.picture;
+                        let base64String = "";
+                        for (let i = 0; i < data.length; i++) {
+                            base64String += String.fromCharCode(data[i]);
+                        }
+                        const artBase64 = `data:${format};base64,${window.btoa(base64String)}`;
+                        // Note: Storing large base64 in Firestore isn't recommended, 
+                        // but we'll put it in the URL field for now.
+                        document.getElementById('mArt').value = artBase64;
+                    }
+
+                    btn.innerHTML = '<i class="fas fa-check"></i> Success';
+                    btn.disabled = false;
+                    setTimeout(() => { btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from MP3 tags'; }, 2000);
+                },
+                onError: function(error) {
+                    console.error('Error reading tags:', error.type, error.info);
+                    alert("Could not read tags. This might be due to CORS restrictions on the MP3 host.");
+                    btn.innerHTML = '<i class="fas fa-magic"></i> Auto-fill from MP3 tags';
+                    btn.disabled = false;
+                }
+            });
+        };
+
         window.handleAdminClick = () => {
             if (!user && !isAdmin) {
-                // If the error was configuration-not-found, we can't do cloud admin
-                // But we can still show the login UI for local session admin
                 document.getElementById('loginView').style.display = 'flex';
             } else if (isAdmin) {
                 window.toggleManager();
@@ -292,16 +355,17 @@
         window.addSong = async () => {
             if (!isAdmin || !db) return;
             const data = {
-                title: document.getElementById('mTitle').value,
-                artist: document.getElementById('mArtist').value,
+                title: document.getElementById('mTitle').value || "Unknown Track",
+                artist: document.getElementById('mArtist').value || "Unknown Artist",
                 art: document.getElementById('mArt').value || els.art.src,
                 url: document.getElementById('mUrl').value,
                 createdAt: Date.now()
             };
+            if(!data.url) return alert("URL is required");
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
                 ['mTitle', 'mArtist', 'mArt', 'mUrl'].forEach(i => document.getElementById(i).value = '');
-            } catch (e) { alert("Permission Denied. Check Firebase Rules."); }
+            } catch (e) { alert("Error adding song."); }
         };
 
         window.deleteSong = async (e, id) => {
@@ -312,7 +376,7 @@
         function renderPlaylist() {
             els.list.innerHTML = trackList.map((t, i) => `
                 <div class="list-item ${i === trackIndex ? 'active' : ''}" onclick="window.jumpTo(${i})">
-                    <img src="${t.art}" onerror="this.src='${els.art.src}'">
+                    <img src="${t.art}" onerror="this.src='https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg'">
                     <div style="flex:1">
                         <div class="persian" style="font-size:0.85rem">${t.title}</div>
                         <div class="persian" style="font-size:0.75rem; color:var(--text-dim)">${t.artist}</div>
