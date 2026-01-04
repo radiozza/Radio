@@ -6,7 +6,8 @@
     <title>RadioZZA - Management</title>
     <style>
         body { font-family: sans-serif; background: #0a0a0a; color: white; padding: 20px; line-height: 1.6; }
-        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #login-gate { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; }
         h2 { color: #e02020; margin-top: 0; }
         label { font-size: 0.8rem; color: #888; display: block; margin-top: 10px; }
         input { width: 100%; padding: 12px; margin: 5px 0 15px; background: #222; border: 1px solid #333; color: white; border-radius: 8px; outline: none; transition: border 0.3s; }
@@ -24,7 +25,15 @@
 </head>
 <body>
 
-<div class="card">
+<div id="login-gate">
+    <div style="width: 300px; text-align: center;">
+        <h2 style="margin-bottom: 20px;">CMS Access</h2>
+        <input type="password" id="passCode" placeholder="Enter Admin Password">
+        <button onclick="checkAccess()">Login</button>
+    </div>
+</div>
+
+<div class="card" id="admin-panel">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2>Station Control</h2>
         <div id="status" class="status">Connecting...</div>
@@ -44,7 +53,6 @@
         <label>Cover Image URL</label>
         <input type="text" id="mArt" placeholder="https://image-link.jpg">
         
-        <!-- Hidden internal field to store the detected duration -->
         <input type="hidden" id="mDur">
         
         <button onclick="addSong()">Add to Playlist</button>
@@ -52,7 +60,7 @@
     </div>
 
     <div id="playlistList">
-        <p style="color: #666; font-size: 0.9rem; text-align: center;">Loading tracks...</p>
+        <p style="color: #666; font-size: 0.9rem; text-align: center;">Syncing with Cloud Database...</p>
     </div>
 </div>
 
@@ -73,23 +81,38 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    
+    // IMPORTANT: Ensure this appId matches exactly across both files
     const appId = 'radiozza-live-v2';
 
-    // Auto-detect duration when URL is pasted
+    // Simple Gatekeeper
+    window.checkAccess = () => {
+        const pass = document.getElementById('passCode').value;
+        if (pass === "1234") { // Replace with your desired password
+            document.getElementById('login-gate').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'block';
+            startApp();
+        } else {
+            alert("Invalid Credential");
+        }
+    };
+
+    function startApp() {
+        signInAnonymously(auth).then(() => {
+            document.getElementById('status').innerText = "● Connected Live";
+            loadPlaylist();
+        });
+    }
+
+    // Auto-detect duration logic
     document.getElementById('mUrl').addEventListener('input', function(e) {
         const url = e.target.value.trim();
-        if (!url) {
-            document.getElementById('mDur').value = "";
-            return;
-        }
-
+        if (!url) return;
         const msg = document.getElementById('detectingMsg');
         const durInput = document.getElementById('mDur');
-        
         msg.style.display = 'block';
         msg.innerText = "⏳ Analysing audio stream...";
         msg.style.color = "#4facfe";
-
         const tempAudio = new Audio();
         tempAudio.src = url;
         tempAudio.addEventListener('loadedmetadata', () => {
@@ -100,37 +123,32 @@
         tempAudio.addEventListener('error', () => {
             msg.innerText = "⚠️ Analysis failed. Will use default duration (180s).";
             msg.style.color = "#e67e22";
-            // Explicitly set fallback if it fails
             durInput.value = "180"; 
         });
     });
 
-    signInAnonymously(auth).then(() => {
-        document.getElementById('status').innerText = "● Connected Live";
-        loadPlaylist();
-    });
-
     function loadPlaylist() {
+        // Correct path for global public data
         onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), (snap) => {
             const list = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt);
             const container = document.getElementById('playlistList');
             container.innerHTML = '<h3 style="margin-top:20px; font-size: 0.9rem; color: #888;">Live Loop Sequence</h3>';
             
             if (list.length === 0) {
-                container.innerHTML += '<p style="color:#555; text-align:center; padding: 20px;">No tracks in loop.</p>';
+                container.innerHTML += '<p style="color:#555; text-align:center; padding: 20px;">Playlist is empty. Add your first track above.</p>';
             }
 
             list.forEach(item => {
                 container.innerHTML += `
                     <div class="song-item">
                         <div style="display:flex; align-items:center; overflow: hidden;">
-                            <img src="${item.art || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg'}">
+                            <img src="${item.art}">
                             <div style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
                                 <div class="persian" style="font-weight:bold; font-size:0.9rem">${item.title}</div>
                                 <div class="persian" style="font-size:0.75rem; color:#888">${item.artist} • ${item.duration}s</div>
                             </div>
                         </div>
-                        <button class="del-btn" onclick="deleteTrack('${item.id}')">Delete</button>
+                        <button class="del-btn" onclick="window.deleteTrack('${item.id}')">Delete</button>
                     </div>
                 `;
             });
@@ -143,30 +161,31 @@
         let durationValue = document.getElementById('mDur').value;
         
         if (!url || !title) {
-            alert("Please enter at least a URL and Title.");
+            alert("URL and Title are required.");
             return;
         }
 
-        // If the detector failed or is still running, default to 180
-        if (!durationValue || isNaN(parseFloat(durationValue))) {
-            durationValue = "180";
+        if (!durationValue) durationValue = "180";
+
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), {
+                url, title, 
+                duration: parseFloat(durationValue),
+                artist: document.getElementById('mArtist').value || "RadioZZA",
+                art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
+                createdAt: Date.now()
+            });
+
+            // Reset inputs
+            ['mUrl','mTitle','mArtist','mArt','mDur'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('detectingMsg').style.display = 'none';
+        } catch (e) {
+            alert("Error saving to database. Check connection.");
         }
-
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), {
-            url, title, 
-            duration: parseFloat(durationValue),
-            artist: document.getElementById('mArtist').value || "RadioZZA",
-            art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
-            createdAt: Date.now()
-        });
-
-        // Clear UI
-        ['mUrl','mTitle','mArtist','mArt','mDur'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('detectingMsg').style.display = 'none';
     };
 
     window.deleteTrack = async (id) => {
-        if(confirm("Permanently remove this track from the station?")) {
+        if(confirm("Permanently remove this track?")) {
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
         }
     };
@@ -175,7 +194,7 @@
         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), {
             startTime: Date.now()
         });
-        alert("Broadcast timeline reset. All listeners will now sync to the start of the first track.");
+        alert("Sync point updated. The loop starts from the first track now.");
     };
 </script>
 </body>
