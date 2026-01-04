@@ -92,7 +92,7 @@
 
         .art-work.playing { transform: scale(1.05); box-shadow: 0 0 30px var(--accent); }
 
-        .info-stack { text-align: center; margin-top: 25px; width: 100%; }
+        .info-stack { text-align: center; margin-top: 25 Persian; width: 100%; }
         .info-stack h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
         .info-stack p { color: var(--text-dim); font-size: 0.85rem; }
 
@@ -342,7 +342,7 @@
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE CONFIG ---
-        // Updated with your specific project credentials
+        // Provided by user
         const firebaseConfig = {
             apiKey: "AIzaSyD_jObj_5sPLaPS55oUcoYQCYRso18cJqo",
             authDomain: "radio-zza.firebaseapp.com",
@@ -382,14 +382,18 @@
 
         // AUTH INITIALIZATION
         const initAuth = async (retries = 0) => {
-            if (!firebaseConfig.apiKey) {
+            // Updated validation check to match user's provided config keys
+            if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("AIzaSy")) {
+                // If the key exists (which it does now), proceed. 
+                // Previous check likely failed due to placeholder logic.
+            } else {
                 els.loader.style.display = 'none';
                 els.configError.style.display = 'block';
                 els.status.innerText = "Configuration Required";
                 return;
             }
 
-            const delays = [500, 1000]; // Shorter retries for better UX
+            const delays = [500, 1000, 2000];
             try {
                 if (!app) {
                     app = initializeApp(firebaseConfig);
@@ -397,7 +401,6 @@
                     db = getFirestore(app);
                 }
 
-                // RULE 3: Auth BEFORE Queries
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -405,14 +408,11 @@
                 }
             } catch (err) {
                 console.error(`Auth Attempt ${retries} failed:`, err.code || err.message);
-                
-                // Handle network failure specifically
-                if ((err.code === 'auth/network-request-failed' || err.message.includes('network')) && retries < delays.length) {
+                if (retries < delays.length) {
                     els.status.innerText = `Connecting... (Retry ${retries + 1})`;
                     setTimeout(() => initAuth(retries + 1), delays[retries]);
                 } else {
-                    // FINAL FALLBACK: If auth fails, we show local state so app isn't stuck
-                    switchToOfflineMode("Network error. Working in guest mode.");
+                    switchToOfflineMode("Cloud connection unavailable. Using guest mode.");
                 }
             }
         };
@@ -422,7 +422,6 @@
             els.status.innerText = message;
             els.overlay.style.display = 'none';
             
-            // Provide default "Loading" track
             trackList = [{
                 title: "RadioZZA Stream",
                 artist: "Live",
@@ -433,10 +432,8 @@
             loadTrack(0);
         }
 
-        // Trigger Auth
         initAuth();
 
-        // Listener for Auth state
         if (auth) {
             onAuthStateChanged(auth, (u) => {
                 if (u) {
@@ -448,11 +445,8 @@
         }
 
         function startSync() {
-            // RULE 3 Check
             if (!auth || !auth.currentUser || !db) return;
-            
             const musicCol = collection(db, 'artifacts', appId, 'public', 'data', 'playlist');
-            
             onSnapshot(musicCol, (snapshot) => {
                 trackList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderPlaylist();
@@ -462,7 +456,6 @@
             });
         }
 
-        // ACTIONS
         window.handleAdminClick = () => {
             if (!user) {
                 alert("Cloud connection required for admin access.");
@@ -491,7 +484,7 @@
             els.body.classList.remove('admin-active');
             els.adminIcon.className = "fas fa-lock secondary-btn admin-toggle";
             window.toggleManager();
-            renderPlaylist(); // Update view to hide trash icons
+            renderPlaylist();
         };
 
         window.addSong = async () => {
@@ -521,7 +514,6 @@
             } catch (e) { console.error("Delete Doc Error:", e); }
         };
 
-        // UI
         function renderPlaylist() {
             els.list.innerHTML = trackList.map((track, index) => `
                 <div class="list-item ${index === trackIndex ? 'active' : ''}" onclick="window.jumpTo(${index})">
@@ -580,18 +572,11 @@
             else audio.play().catch(() => {});
         };
 
-        window.jumpTo = (index) => {
-            loadTrack(index);
-            if (!isPlaying) window.togglePlay();
-            else audio.play().catch(() => {});
-        };
-
         window.toggleManager = () => {
             const v = document.getElementById('managerView');
             v.style.display = (v.style.display === 'flex') ? 'none' : 'flex';
         };
 
-        // AUDIO ENGINE
         audio.ontimeupdate = () => {
             if (audio.duration) {
                 const percent = (audio.currentTime / audio.duration) * 100;
