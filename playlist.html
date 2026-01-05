@@ -3,36 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RadioZZA CMS</title>
+    <title>RadioZZA - Management</title>
     <style>
         body { font-family: sans-serif; background: #0a0a0a; color: white; padding: 20px; }
-        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; max-width: 500px; margin: 0 auto; border: 1px solid #333; }
+        #login-gate { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; max-width: 500px; margin: 0 auto; border: 1px solid #333; display: none; }
+        h2 { color: #e02020; margin-top: 0; }
         input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
         button { background: #e02020; color: white; border: none; padding: 14px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
-        .song-item { background: #222; margin-top: 10px; padding: 10px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; }
-        .song-item img { width: 40px; height: 40px; border-radius: 5px; margin-right: 10px; }
+        .song-item { background: #222; margin-top: 10px; padding: 10px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #2a2a2a; }
+        .song-item img { width: 45px; height: 45px; border-radius: 6px; margin-right: 15px; }
         .persian { direction: rtl; text-align: right; }
     </style>
 </head>
 <body>
 
+<div id="login-gate">
+    <h2 style="margin-bottom: 20px;">Admin Access</h2>
+    <button onclick="window.adminLogin()" style="width: 250px;">Login with Google</button>
+</div>
+
 <div class="card" id="admin-panel">
     <h2>Station Control</h2>
-    <input type="text" id="mUrl" placeholder="Audio URL (MP3)">
-    <input type="text" id="mTitle" placeholder="Track Title" class="persian">
-    <input type="text" id="mArtist" placeholder="Artist Name" class="persian">
-    <input type="text" id="mArt" placeholder="Cover Image URL">
-    <input type="number" id="mDur" placeholder="Duration in Seconds (e.g. 180)">
     
+    <label style="font-size: 0.8rem; color: #888;">Audio URL (Direct MP3)</label>
+    <input type="text" id="mUrl" placeholder="https://...">
+    
+    <label style="font-size: 0.8rem; color: #888;">Track Title</label>
+    <input type="text" id="mTitle" placeholder="عنوان" class="persian">
+    
+    <label style="font-size: 0.8rem; color: #888;">Artist</label>
+    <input type="text" id="mArtist" placeholder="نام هنرمند" class="persian">
+    
+    <label style="font-size: 0.8rem; color: #888;">Duration (Seconds)</label>
+    <input type="number" id="mDur" placeholder="180">
+
     <button onclick="window.addSong()">Add to Playlist</button>
-    <button onclick="window.resetStream()" style="background:#444">Reset Stream Sync (Loop Start)</button>
-    
+    <button onclick="window.resetStream()" style="background: #333;">Reset Global Sync Time</button>
+
     <div id="playlistList" style="margin-top: 30px;"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -45,46 +59,73 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
     const appId = 'radiozza-live-v2';
 
-    // Simple session-based lock (Real security should be in Firebase Rules)
-    if (sessionStorage.getItem('radioAuth') !== 'true') {
-        const p = prompt("Enter Admin Password:");
-        if (p === "1234") { sessionStorage.setItem('radioAuth', 'true'); } 
-        else { document.body.innerHTML = "Unauthorized"; }
-    }
+    // CHANGE THIS to your email address
+    const ADMIN_EMAIL = "your-email@gmail.com"; 
 
-    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), (snap) => {
-        const list = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt);
-        const container = document.getElementById('playlistList');
-        container.innerHTML = '<h3>Current Loop</h3>';
-        list.forEach(item => {
-            container.innerHTML += `
-                <div class="song-item">
-                    <img src="${item.art}">
-                    <div style="flex:1"><b>${item.title}</b><br>${item.duration}s</div>
-                    <button style="width:auto; padding:5px 10px; background:#444" onclick="window.deleteTrack('${item.id}')">Del</button>
-                </div>`;
-        });
-    });
-
-    window.addSong = async () => {
-        const data = {
-            url: document.getElementById('mUrl').value,
-            title: document.getElementById('mTitle').value,
-            artist: document.getElementById('mArtist').value,
-            art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
-            duration: parseFloat(document.getElementById('mDur').value),
-            createdAt: Date.now()
-        };
-        if(!data.url || !data.duration) return alert("URL and Duration required");
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
-        alert("Added!");
+    window.adminLogin = async () => {
+        try { await signInWithPopup(auth, provider); } catch(e) { alert("Login Error"); }
     };
 
-    window.deleteTrack = async (id) => { if(confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id)); };
-    window.resetStream = async () => { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), { startTime: Date.now() }); alert("Synced!"); };
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            if (user.email === ADMIN_EMAIL) {
+                document.getElementById('login-gate').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                loadPlaylist();
+            } else {
+                alert("Unauthorized Email!");
+                auth.signOut();
+            }
+        }
+    });
+
+    function loadPlaylist() {
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), (snap) => {
+            const list = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt);
+            const container = document.getElementById('playlistList');
+            container.innerHTML = '<h3>Live Loop Sequence</h3>';
+            list.forEach(item => {
+                container.innerHTML += `
+                    <div class="song-item">
+                        <div style="flex:1">
+                            <div class="persian"><b>${item.title}</b></div>
+                            <div style="font-size:0.7rem; color:#888">${item.duration}s</div>
+                        </div>
+                        <button style="width:auto; padding:5px 10px; background:#444" onclick="window.deleteTrack('${item.id}')">Delete</button>
+                    </div>`;
+            });
+        });
+    }
+
+    window.addSong = async () => {
+        const url = document.getElementById('mUrl').value;
+        const dur = document.getElementById('mDur').value;
+        if(!url || !dur) return alert("URL and Duration needed");
+
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), {
+            url,
+            title: document.getElementById('mTitle').value,
+            artist: document.getElementById('mArtist').value,
+            duration: parseFloat(dur),
+            art: 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
+            createdAt: Date.now()
+        });
+        alert("Track Added");
+    };
+
+    window.deleteTrack = async (id) => {
+        if(confirm("Remove?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
+    };
+
+    window.resetStream = async () => {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), { startTime: Date.now() });
+        alert("Sync Reset!");
+    };
 </script>
 </body>
 </html>
