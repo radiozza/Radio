@@ -3,71 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RadioZZA - Management</title>
+    <title>RadioZZA CMS</title>
     <style>
-        body { font-family: sans-serif; background: #0a0a0a; color: white; padding: 20px; line-height: 1.6; }
-        #login-gate { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; }
-        h2 { color: #e02020; margin-top: 0; }
-        label { font-size: 0.8rem; color: #888; display: block; margin-top: 10px; }
-        input { width: 100%; padding: 12px; margin: 5px 0 15px; background: #222; border: 1px solid #333; color: white; border-radius: 8px; outline: none; transition: border 0.3s; }
-        input:focus { border-color: #e02020; }
-        button { background: #e02020; color: white; border: none; padding: 14px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1rem; transition: opacity 0.3s; }
-        button:hover { opacity: 0.9; }
-        .secondary-btn { background: #333; margin-top: 10px; }
-        .song-item { background: #222; margin-top: 10px; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #2a2a2a; }
-        .song-item img { width: 45px; height: 45px; border-radius: 6px; margin-right: 15px; object-fit: cover; }
-        .del-btn { background: #444; width: auto; padding: 6px 12px; font-size: 0.75rem; }
-        .status { font-size: 0.75rem; color: #4ade80; margin-bottom: 15px; text-align: right; }
-        .persian { direction: rtl; font-family: 'Tahoma', sans-serif; }
-        .detecting { font-size: 0.7rem; color: #4facfe; margin-top: -10px; margin-bottom: 10px; }
-        .manual-dur { display: flex; gap: 10px; align-items: center; background: #222; padding: 10px; border-radius: 8px; border: 1px solid #333; margin-bottom: 15px; }
-        .manual-dur input { margin: 0; width: 80px; text-align: center; }
+        body { font-family: sans-serif; background: #0a0a0a; color: white; padding: 20px; }
+        .card { background: #1a1a1a; padding: 25px; border-radius: 20px; max-width: 500px; margin: 0 auto; border: 1px solid #333; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; }
+        button { background: #e02020; color: white; border: none; padding: 14px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        .song-item { background: #222; margin-top: 10px; padding: 10px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; }
+        .song-item img { width: 40px; height: 40px; border-radius: 5px; margin-right: 10px; }
+        .persian { direction: rtl; text-align: right; }
     </style>
 </head>
 <body>
 
-<div id="login-gate">
-    <div style="width: 300px; text-align: center;">
-        <h2 style="margin-bottom: 20px;">CMS Access</h2>
-        <input type="password" id="passCode" placeholder="Enter Admin Password">
-        <button onclick="checkAccess()">Login</button>
-    </div>
-</div>
-
 <div class="card" id="admin-panel">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>Station Control</h2>
-        <div id="status" class="status">Connecting...</div>
-    </div>
+    <h2>Station Control</h2>
+    <input type="text" id="mUrl" placeholder="Audio URL (MP3)">
+    <input type="text" id="mTitle" placeholder="Track Title" class="persian">
+    <input type="text" id="mArtist" placeholder="Artist Name" class="persian">
+    <input type="text" id="mArt" placeholder="Cover Image URL">
+    <input type="number" id="mDur" placeholder="Duration in Seconds (e.g. 180)">
     
-    <div style="border-bottom: 1px solid #333; margin-bottom: 25px; padding-bottom: 10px;">
-        <label>Direct Audio URL (MP3/M4A)</label>
-        <input type="text" id="mUrl" placeholder="https://example.com/song.mp3">
-        <div id="detectingMsg" class="detecting" style="display:none;">Analysing file...</div>
-        
-        <div id="durationContainer" class="manual-dur" style="display:none;">
-            <span style="font-size: 0.75rem; color: #888;">Duration (sec):</span>
-            <input type="number" id="mDur" placeholder="180">
-            <span style="font-size: 0.7rem; color: #e67e22;">⚠️ Manual entry needed</span>
-        </div>
-
-        <label>Track Title</label>
-        <input type="text" id="mTitle" placeholder="عنوان آهنگ" class="persian">
-        
-        <label>Artist Name</label>
-        <input type="text" id="mArtist" placeholder="نام هنرمند" class="persian">
-        
-        <label>Cover Image URL</label>
-        <input type="text" id="mArt" placeholder="https://image-link.jpg">
-        
-        <button onclick="addSong()">Add to Playlist</button>
-        <button onclick="resetStream()" class="secondary-btn">🔄 Reset Global Start Time (Sync All)</button>
-    </div>
-
-    <div id="playlistList">
-        <p style="color: #666; font-size: 0.9rem; text-align: center;">Syncing with Cloud Database...</p>
-    </div>
+    <button onclick="window.addSong()">Add to Playlist</button>
+    <button onclick="window.resetStream()" style="background:#444">Reset Stream Sync (Loop Start)</button>
+    
+    <div id="playlistList" style="margin-top: 30px;"></div>
 </div>
 
 <script type="module">
@@ -85,133 +45,84 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
-    
     const appId = 'radiozza-live-v2';
 
-    window.checkAccess = () => {
-        const pass = document.getElementById('passCode').value;
-        if (pass === "1234") {
-            document.getElementById('login-gate').style.display = 'none';
-            document.getElementById('admin-panel').style.display = 'block';
-            startApp();
-        } else {
-            alert("Invalid Credential");
-        }
-    };
-
-    function startApp() {
-        signInAnonymously(auth).then(() => {
-            document.getElementById('status').innerText = "● Connected Live";
-            loadPlaylist();
-        });
+    // Simple session-based lock (Real security should be in Firebase Rules)
+    if (sessionStorage.getItem('radioAuth') !== 'true') {
+        const p = prompt("Enter Admin Password:");
+        if (p === "1234") { sessionStorage.setItem('radioAuth', 'true'); } 
+        else { document.body.innerHTML = "Unauthorized"; }
     }
 
-    // Auto-detect duration logic
-    document.getElementById('mUrl').addEventListener('input', function(e) {
-        const url = e.target.value.trim();
-        if (!url) {
-            document.getElementById('durationContainer').style.display = 'none';
-            return;
-        }
-        const msg = document.getElementById('detectingMsg');
-        const durInput = document.getElementById('mDur');
-        const durContainer = document.getElementById('durationContainer');
-        
-        msg.style.display = 'block';
-        msg.innerText = "⏳ Analysing audio stream...";
-        msg.style.color = "#4facfe";
-        
-        const tempAudio = new Audio();
-        tempAudio.src = url;
-        
-        tempAudio.addEventListener('loadedmetadata', () => {
-            durInput.value = Math.ceil(tempAudio.duration);
-            msg.innerText = "✅ Audio verified: Ready to add.";
-            msg.style.color = "#4ade80";
-            durContainer.style.display = 'none'; // Hide manual input if successful
-        });
-        
-        tempAudio.addEventListener('error', () => {
-            msg.innerText = "⚠️ Analysis failed. Please enter duration manually.";
-            msg.style.color = "#e67e22";
-            durInput.value = "180"; 
-            durContainer.style.display = 'flex'; // Show manual input on failure
+    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), (snap) => {
+        const list = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt);
+        const container = document.getElementById('playlistList');
+        container.innerHTML = '<h3>Current Loop</h3>';
+        list.forEach(item => {
+            container.innerHTML += `
+                <div class="song-item">
+                    <img src="${item.art}">
+                    <div style="flex:1"><b>${item.title}</b><br>${item.duration}s</div>
+                    <button style="width:auto; padding:5px 10px; background:#444" onclick="window.deleteTrack('${item.id}')">Del</button>
+                </div>`;
         });
     });
 
-    function loadPlaylist() {
-        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), (snap) => {
-            const list = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.createdAt - b.createdAt);
-            const container = document.getElementById('playlistList');
-            container.innerHTML = '<h3 style="margin-top:20px; font-size: 0.9rem; color: #888;">Live Loop Sequence</h3>';
-            
-            if (list.length === 0) {
-                container.innerHTML += '<p style="color:#555; text-align:center; padding: 20px;">Playlist is empty. Add your first track above.</p>';
-            }
-
-            list.forEach(item => {
-                container.innerHTML += `
-                    <div class="song-item">
-                        <div style="display:flex; align-items:center; overflow: hidden;">
-                            <img src="${item.art}">
-                            <div style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
-                                <div class="persian" style="font-weight:bold; font-size:0.9rem">${item.title}</div>
-                                <div class="persian" style="font-size:0.75rem; color:#888">${item.artist} • ${item.duration}s</div>
-                            </div>
-                        </div>
-                        <button class="del-btn" onclick="window.deleteTrack('${item.id}')">Delete</button>
-                    </div>
-                `;
-            });
-        });
-    }
-
     window.addSong = async () => {
-        const url = document.getElementById('mUrl').value.trim();
-        const title = document.getElementById('mTitle').value.trim();
-        let durationValue = document.getElementById('mDur').value;
-        
-        if (!url || !title) {
-            alert("URL and Title are required.");
-            return;
-        }
-
-        if (!durationValue || isNaN(parseFloat(durationValue))) {
-            durationValue = "180";
-        }
-
-        try {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), {
-                url, title, 
-                duration: parseFloat(durationValue),
-                artist: document.getElementById('mArtist').value || "RadioZZA",
-                art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
-                createdAt: Date.now()
-            });
-
-            // Reset inputs
-            ['mUrl','mTitle','mArtist','mArt','mDur'].forEach(id => document.getElementById(id).value = '');
-            document.getElementById('detectingMsg').style.display = 'none';
-            document.getElementById('durationContainer').style.display = 'none';
-        } catch (e) {
-            alert("Error saving to database. Check connection.");
-        }
+        const data = {
+            url: document.getElementById('mUrl').value,
+            title: document.getElementById('mTitle').value,
+            artist: document.getElementById('mArtist').value,
+            art: document.getElementById('mArt').value || 'https://raw.githubusercontent.com/radiozza/Radio/refs/heads/main/1404-10-14%2021.53.40.jpg',
+            duration: parseFloat(document.getElementById('mDur').value),
+            createdAt: Date.now()
+        };
+        if(!data.url || !data.duration) return alert("URL and Duration required");
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'playlist'), data);
+        alert("Added!");
     };
 
-    window.deleteTrack = async (id) => {
-        if(confirm("Permanently remove this track?")) {
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id));
-        }
-    };
-
-    window.resetStream = async () => {
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), {
-            startTime: Date.now()
-        });
-        alert("Sync point updated. The loop starts from the first track now.");
-    };
+    window.deleteTrack = async (id) => { if(confirm("Delete?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'playlist', id)); };
+    window.resetStream = async () => { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'stream_state', 'current'), { startTime: Date.now() }); alert("Synced!"); };
 </script>
 </body>
 </html>
+```
+
+---
+
+### 3. How to Deploy (Step-by-Step)
+
+Since you already have a GitHub repo, we will use **GitHub Pages**.
+
+1.  **Update GitHub:**
+    *   Upload the new `index.html` and `playlist.html` to your repository.
+2.  **Enable Pages:**
+    *   Go to your GitHub Repository -> **Settings**.
+    *   On the left sidebar, click **Pages**.
+    *   Under "Build and deployment" > "Branch", select **main** (or master) and click **Save**.
+3.  **Wait 2 minutes:**
+    *   GitHub will give you a link like `https://radiozza.github.io/Radio/`.
+4.  **CRITICAL: Security Rules:**
+    *   Go to [Firebase Console](https://console.firebase.google.com/).
+    *   Go to **Firestore Database** -> **Rules**.
+    *   Paste these rules to prevent strangers from deleting your music:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/radiozza-live-v2/public/data/playlist/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null; // Ideally, check for your specific UID here
+    }
+    match /artifacts/radiozza-live-v2/public/data/stream_state/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /artifacts/radiozza-live-v2/public/data/presence/{doc} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
